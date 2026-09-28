@@ -3,6 +3,7 @@
 #include <kernel/terminal.h>
 #include <kernel/kprintf.h>
 #include <kernel/keyboard.h>
+#include <kernel/gdt.h>
 
 static void process_keyboard_input(void)
 {
@@ -11,18 +12,11 @@ static void process_keyboard_input(void)
         char character = keyboard_getchar();
 
         /*
-         * Basic terminal backspace handling.
+         * Backspace handling will be implemented
+         * properly in the terminal/shell layer later.
          */
         if (character == '\b')
         {
-            /*
-             * For Phase 3, simply move the cursor
-             * one position backward and erase the
-             * character.
-             *
-             * A proper terminal editing layer will
-             * come later.
-             */
             continue;
         }
 
@@ -38,7 +32,17 @@ void kernel_main(void)
     klog_ok("VGA text mode ready");
 
     klog_info("Kernel entry point reached");
-    klog_info("Phase 3: PS/2 keyboard driver");
+    klog_info("Phase 4: Global Descriptor Table");
+
+    /*
+     * Initialize our own GDT before continuing
+     * with the rest of kernel initialization.
+     */
+    gdt_initialize();
+
+    klog_ok("GDT initialized");
+    klog_info("Kernel code segment: 0x08");
+    klog_info("Kernel data segment: 0x10");
 
     keyboard_initialize();
 
@@ -51,7 +55,6 @@ void kernel_main(void)
     while (1)
     {
         keyboard_poll();
-
         process_keyboard_input();
     }
 }

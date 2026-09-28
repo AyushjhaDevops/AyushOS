@@ -1,16 +1,15 @@
 ASM      = nasm
 CC       = gcc
 LD       = ld
-
 CFLAGS   = -m32 \
            -ffreestanding \
            -fno-pie \
            -fno-stack-protector \
            -nostdlib \
            -nostdinc \
+           -g \
            -Wall \
            -Wextra
-
 LDFLAGS  = -m elf_i386 \
            -T scripts/linker.ld
 
@@ -18,63 +17,66 @@ KERNEL   = build/kernel.bin
 
 ASM_SRC  = arch/x86/boot.asm
 
-C_OBJS   = \
-           build/kernel.o \
-           build/terminal.o \
-           build/kprintf.o \
-           build/keyboard.o
+C_OBJS  = \
+          build/kernel.o \
+          build/terminal.o \
+          build/kprintf.o \
+          build/keyboard.o \
+          build/gdt.o
 
-ASM_OBJ  = build/boot.o
+ASM_OBJ      = build/boot.o
+GDT_ASM_OBJ  = build/gdt_flush.o
 
-OBJS     = $(ASM_OBJ) $(C_OBJS)
+OBJS = \
+       $(ASM_OBJ) \
+       $(GDT_ASM_OBJ) \
+       $(C_OBJS)
 
 ISO_DIR  = iso
 ISO_FILE = AyushOS.iso
-
 
 .PHONY: all clean iso run debug
 
 all: $(KERNEL)
 
-
 $(ASM_OBJ): $(ASM_SRC)
 	@mkdir -p build
 	$(ASM) -f elf32 $< -o $@
 
+build/gdt_flush.o: arch/x86/gdt_flush.asm
+	@mkdir -p build
+	$(ASM) -f elf32 $< -o $@
 
 build/kernel.o: kernel/kernel.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
-
 build/terminal.o: kernel/drivers/terminal.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
-
 
 build/kprintf.o: kernel/lib/kprintf.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
-
 build/keyboard.o: kernel/drivers/keyboard.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
+build/gdt.o: kernel/gdt.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
 $(KERNEL): $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^
-
 
 iso: $(KERNEL)
 	mkdir -p $(ISO_DIR)/boot
 	cp $(KERNEL) $(ISO_DIR)/boot/kernel.bin
 	grub-mkrescue -o $(ISO_FILE) $(ISO_DIR)
 
-
 run: iso
 	qemu-system-i386 -cdrom $(ISO_FILE)
-
 
 debug: iso
 	qemu-system-i386 \
@@ -83,7 +85,6 @@ debug: iso
 		-no-shutdown \
 		-s \
 		-S
-
 
 clean:
 	rm -rf build/*
