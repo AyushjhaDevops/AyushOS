@@ -17,10 +17,20 @@ LDFLAGS  = -m elf_i386 \
 KERNEL   = build/kernel.bin
 
 ASM_SRC  = arch/x86/boot.asm
-C_SRC    = kernel/kernel.c
+
+C_SRCS   = \
+           kernel/kernel.c \
+           kernel/drivers/terminal.c \
+           kernel/lib/kprintf.c
 
 ASM_OBJ  = build/boot.o
-C_OBJ    = build/kernel.o
+
+C_OBJS   = \
+           build/kernel.o \
+           build/terminal.o \
+           build/kprintf.o
+
+OBJS     = $(ASM_OBJ) $(C_OBJS)
 
 ISO_DIR  = iso
 ISO_FILE = AyushOS.iso
@@ -30,23 +40,40 @@ ISO_FILE = AyushOS.iso
 
 all: $(KERNEL)
 
+
 $(ASM_OBJ): $(ASM_SRC)
 	@mkdir -p build
 	$(ASM) -f elf32 $< -o $@
 
-$(C_OBJ): $(C_SRC)
+
+build/kernel.o: kernel/kernel.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
-$(KERNEL): $(ASM_OBJ) $(C_OBJ)
+
+build/terminal.o: kernel/drivers/terminal.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
+
+
+build/kprintf.o: kernel/lib/kprintf.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
+
+
+$(KERNEL): $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
+
 iso: $(KERNEL)
+	mkdir -p $(ISO_DIR)/boot
 	cp $(KERNEL) $(ISO_DIR)/boot/kernel.bin
 	grub-mkrescue -o $(ISO_FILE) $(ISO_DIR)
 
+
 run: iso
 	qemu-system-i386 -cdrom $(ISO_FILE)
+
 
 debug: iso
 	qemu-system-i386 \
@@ -55,6 +82,7 @@ debug: iso
 		-no-shutdown \
 		-s \
 		-S
+
 
 clean:
 	rm -rf build/*

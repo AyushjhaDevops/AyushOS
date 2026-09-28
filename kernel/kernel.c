@@ -1,18 +1,29 @@
 #include <stdint.h>
+#include <kernel/terminal.h>
+#include <kernel/kprintf.h>
 
 void kernel_main(void)
 {
-    volatile uint16_t *video_memory =
-        (volatile uint16_t *)0xB8000;
+    terminal_initialize();
 
-    const char *message = "Welcome to AyushOS";
+    klog_ok("Terminal initialized");
+    klog_ok("VGA text mode ready");
 
-    for (uint32_t i = 0; message[i] != '\0'; i++)
-    {
-        video_memory[i] =
-            ((uint16_t)0x07 << 8) |
-            (uint8_t)message[i];
-    }
+    klog_info("Kernel entry point reached");
+    klog_info("Phase 2: Terminal subsystem");
+
+    kprintf("\n");
+    kprintf("Kernel information:\n");
+    kprintf("  VGA address : %x\n", 0xB8000);
+    kprintf("  Screen      : %ux%u\n",
+            VGA_WIDTH,
+            VGA_HEIGHT);
+
+    kprintf("\n");
+
+    klog_ok("Kernel initialization complete");
+
+    terminal_write("\nAyushOS> ");
 
     while (1)
     {
