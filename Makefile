@@ -18,17 +18,13 @@ KERNEL   = build/kernel.bin
 
 ASM_SRC  = arch/x86/boot.asm
 
-C_SRCS   = \
-           kernel/kernel.c \
-           kernel/drivers/terminal.c \
-           kernel/lib/kprintf.c
-
-ASM_OBJ  = build/boot.o
-
 C_OBJS   = \
            build/kernel.o \
            build/terminal.o \
-           build/kprintf.o
+           build/kprintf.o \
+           build/keyboard.o
+
+ASM_OBJ  = build/boot.o
 
 OBJS     = $(ASM_OBJ) $(C_OBJS)
 
@@ -57,6 +53,11 @@ build/terminal.o: kernel/drivers/terminal.c
 
 
 build/kprintf.o: kernel/lib/kprintf.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
+
+
+build/keyboard.o: kernel/drivers/keyboard.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
