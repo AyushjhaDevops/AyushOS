@@ -28,7 +28,8 @@ C_OBJS  = \
           build/idt.o \
           build/pic.o \
           build/irq.o \
-          build/timer.o
+          build/timer.o \
+          build/process.o
 
 ASM_OBJ       = build/boot.o
 GDT_ASM_OBJ   = build/gdt_flush.o
@@ -47,34 +48,17 @@ OBJS = \
 ISO_DIR  = iso
 ISO_FILE = AyushOS.iso
 
-
 .PHONY: all clean iso run debug
 
-
 all: $(KERNEL)
-
-
-# ---------------------------------------------------------
-# Boot assembly
-# ---------------------------------------------------------
 
 $(ASM_OBJ): $(ASM_SRC)
 	@mkdir -p build
 	$(ASM) -f elf32 $< -o $@
 
-
-# ---------------------------------------------------------
-# GDT assembly
-# ---------------------------------------------------------
-
 build/gdt_flush.o: arch/x86/gdt_flush.asm
 	@mkdir -p build
 	$(ASM) -f elf32 $< -o $@
-
-
-# ---------------------------------------------------------
-# IDT assembly
-# ---------------------------------------------------------
 
 build/idt_flush.o: arch/x86/idt_flush.asm
 	@mkdir -p build
@@ -83,81 +67,38 @@ build/idt_flush.o: arch/x86/idt_flush.asm
 build/interrupts.o: arch/x86/interrupts.asm
 	@mkdir -p build
 	$(ASM) -f elf32 $< -o $@
-# ---------------------------------------------------------
-# IRQ assembly
-# ---------------------------------------------------------
 
 build/irq_asm.o: arch/x86/irq.asm
 	@mkdir -p build
 	$(ASM) -f elf32 $< -o $@
 
-
-# ---------------------------------------------------------
-# Kernel
-# ---------------------------------------------------------
-
 build/kernel.o: kernel/kernel.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
-
-
-# ---------------------------------------------------------
-# Terminal
-# ---------------------------------------------------------
 
 build/terminal.o: kernel/drivers/terminal.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
-
-# ---------------------------------------------------------
-# printf
-# ---------------------------------------------------------
-
 build/kprintf.o: kernel/lib/kprintf.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
-
-
-# ---------------------------------------------------------
-# Keyboard
-# ---------------------------------------------------------
 
 build/keyboard.o: kernel/drivers/keyboard.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
-
-# ---------------------------------------------------------
-# GDT
-# ---------------------------------------------------------
-
 build/gdt.o: kernel/gdt.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
-
-
-# ---------------------------------------------------------
-# IDT
-# ---------------------------------------------------------
 
 build/idt.o: kernel/idt.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
-
-# ---------------------------------------------------------
-# PIC
-# ---------------------------------------------------------
-
 build/pic.o: kernel/pic.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
-
-
-# ---------------------------------------------------------
-# IRQ
-# ---------------------------------------------------------
 
 build/irq.o: kernel/irq.c
 	@mkdir -p build
@@ -167,36 +108,20 @@ build/timer.o: kernel/timer.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
-# ---------------------------------------------------------
-# Link kernel
-# ---------------------------------------------------------
+build/process.o: kernel/process.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
 $(KERNEL): $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^
-
-
-# ---------------------------------------------------------
-# Create ISO
-# ---------------------------------------------------------
 
 iso: $(KERNEL)
 	mkdir -p $(ISO_DIR)/boot
 	cp $(KERNEL) $(ISO_DIR)/boot/kernel.bin
 	grub-mkrescue -o $(ISO_FILE) $(ISO_DIR)
 
-
-# ---------------------------------------------------------
-# Run
-# ---------------------------------------------------------
-
 run: iso
-	qemu-system-i386 \
-		-cdrom $(ISO_FILE)
-
-
-# ---------------------------------------------------------
-# Debug
-# ---------------------------------------------------------
+	qemu-system-i386 -cdrom $(ISO_FILE)
 
 debug: iso
 	qemu-system-i386 \
@@ -205,11 +130,6 @@ debug: iso
 		-no-shutdown \
 		-s \
 		-S
-
-
-# ---------------------------------------------------------
-# Clean
-# ---------------------------------------------------------
 
 clean:
 	rm -rf build/*

@@ -8,19 +8,68 @@
 #include <kernel/pic.h>
 #include <kernel/irq.h>
 #include <kernel/timer.h>
+#include <kernel/process.h>
 
 /*
- * Process characters received from the keyboard buffer.
+ * ============================================================
+ * TEST PROCESSES
+ * ============================================================
+ *
+ * These functions are NOT executed in Phase 9.
+ *
+ * They are process entry points stored inside the PCB.
+ *
+ * Phase 10 will introduce context switching and actually
+ * transfer CPU execution to these functions.
+ */
+
+/*
+ * Idle process.
+ */
+static void idle_process(void)
+{
+    while (1)
+    {
+        __asm__ volatile ("hlt");
+    }
+}
+
+/*
+ * Test process A.
+ */
+static void test_process_a(void)
+{
+    while (1)
+    {
+        /*
+         * Phase 10 will eventually allow this process
+         * to execute independently.
+         */
+        __asm__ volatile ("hlt");
+    }
+}
+
+/*
+ * Test process B.
+ */
+static void test_process_b(void)
+{
+    while (1)
+    {
+        __asm__ volatile ("hlt");
+    }
+}
+
+/*
+ * Process keyboard characters.
  */
 static void process_keyboard_input(void)
 {
     while (keyboard_has_char())
     {
-        char character = keyboard_getchar();
+        char character =
+            keyboard_getchar();
 
-        /*
-         * Backspace handling will be improved later.
-         */
         if (character == '\b')
             continue;
 
@@ -111,7 +160,7 @@ void kernel_main(void)
 
     /*
      * ========================================================
-     * IRQ SUBSYSTEM
+     * IRQ
      * ========================================================
      */
 
@@ -123,7 +172,17 @@ void kernel_main(void)
 
     /*
      * ========================================================
-     * TIMER
+     * PROCESS MANAGER
+     * ========================================================
+     *
+     * Initialize before enabling hardware interrupts.
+     */
+
+    process_initialize();
+
+    /*
+     * ========================================================
+     * PIT
      * ========================================================
      */
 
@@ -147,7 +206,96 @@ void kernel_main(void)
 
     /*
      * ========================================================
-     * ENABLE HARDWARE INTERRUPTS
+     * CREATE PROCESSES
+     * ========================================================
+     */
+
+    uint32_t idle_pid =
+        process_create(
+            "idle",
+            idle_process,
+            0
+        );
+
+    uint32_t test_a_pid =
+        process_create(
+            "test-A",
+            test_process_a,
+            10
+        );
+
+    uint32_t test_b_pid =
+        process_create(
+            "test-B",
+            test_process_b,
+            10
+        );
+
+    if (idle_pid == 0)
+    {
+        klog_error(
+            "Failed to create idle process"
+        );
+    }
+    else
+    {
+        kprintf(
+            "[ OK ] Created idle process PID=%u\n",
+            idle_pid
+        );
+    }
+
+    if (test_a_pid == 0)
+    {
+        klog_error(
+            "Failed to create test-A"
+        );
+    }
+    else
+    {
+        kprintf(
+            "[ OK ] Created test-A PID=%u\n",
+            test_a_pid
+        );
+    }
+
+    if (test_b_pid == 0)
+    {
+        klog_error(
+            "Failed to create test-B"
+        );
+    }
+    else
+    {
+        kprintf(
+            "[ OK ] Created test-B PID=%u\n",
+            test_b_pid
+        );
+    }
+
+    /*
+     * ========================================================
+     * SELECT INITIAL PROCESS
+     * ========================================================
+     *
+     * Phase 9 does not switch CPU execution.
+     *
+     * We only mark PID 1 as RUNNING so IRQ0 can account
+     * runtime ticks against it.
+     */
+
+    process_set_state(
+        idle_pid,
+        PROCESS_RUNNING
+    );
+
+    /*
+     * Other processes remain READY.
+     */
+
+    /*
+     * ========================================================
+     * ENABLE INTERRUPTS
      * ========================================================
      */
 
@@ -161,38 +309,29 @@ void kernel_main(void)
         "Hardware interrupts enabled"
     );
 
-    /*
-     * ========================================================
-     * SHELL
-     * ========================================================
-     */
-
     terminal_write(
         "\nAyushOS> "
     );
 
     /*
      * ========================================================
-     * PHASE 8 TIMING TEST
+     * PHASE 9 DEMONSTRATION
      * ========================================================
-     *
-     * We print a status message once every second.
-     *
-     * The timer interrupt continues to run in the
-     * background.
      */
 
     uint32_t last_second = 0;
 
+    uint32_t process_table_printed = 0;
+
     while (1)
     {
         /*
-         * Process keyboard input.
+         * Keyboard input.
          */
         process_keyboard_input();
 
         /*
-         * Read current uptime.
+         * Current system time.
          */
         uint32_t milliseconds =
             timer_get_milliseconds();
@@ -201,16 +340,59 @@ void kernel_main(void)
             milliseconds / 1000U;
 
         /*
-         * Print once per second.
+         * Print process table once after
+         * the first second.
          */
-        if (current_second != last_second)
+        if (
+            current_second >= 1
+            &&
+            process_table_printed == 0
+        )
         {
-            last_second = current_second;
+            process_table_printed = 1;
+
+            kprintf(
+                "\n[PROCESS] Process subsystem online\n"
+            );
+
+            process_list();
+
+            terminal_write(
+                "\nAyushOS> "
+            );
+        }
+
+        /*
+         * Print timer/process accounting once per second.
+         */
+        if (
+            current_second !=
+            last_second
+        )
+        {
+            last_second =
+                current_second;
+
+            process_t *current =
+                process_current();
+
+            uint32_t runtime =
+                0;
+
+            if (current != 0)
+                runtime =
+                    current->runtime_ticks;
 
             kprintf(
                 "\n[TIME] uptime=%u ms ticks=%u\n",
                 milliseconds,
                 timer_get_ticks()
+            );
+
+            kprintf(
+                "[PROCESS] current_pid=%u runtime_ticks=%u\n",
+                process_current_pid(),
+                runtime
             );
 
             terminal_write(
@@ -221,7 +403,7 @@ void kernel_main(void)
         /*
          * Wait for an interrupt.
          *
-         * Normally this will be the PIT's IRQ0.
+         * PIT IRQ0 occurs approximately every 10 ms.
          */
         __asm__ volatile ("hlt");
     }

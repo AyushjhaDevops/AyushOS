@@ -5,7 +5,7 @@
 #include <kernel/irq.h>
 #include <kernel/pic.h>
 #include <kernel/kprintf.h>
-
+#include <kernel/process.h>
 /*
  * PIT I/O ports.
  */
@@ -49,15 +49,20 @@ static uint32_t timer_frequency = PIT_FREQUENCY;
  */
 static void timer_irq_handler(irq_frame_t *frame)
 {
-    /*
-     * The interrupt frame is not currently needed.
-     */
     (void)frame;
 
     /*
-     * One timer tick occurred.
+     * Update global system time.
      */
     timer_ticks++;
+
+    /*
+     * Update runtime accounting for the
+     * currently running process.
+     *
+     * No context switch occurs yet.
+     */
+    process_tick();
 }
 
 /*
