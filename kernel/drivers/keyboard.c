@@ -1,8 +1,9 @@
 #include <stdint.h>
 
-#include <kernel/io.h>
 #include <kernel/keyboard.h>
-
+#include <kernel/io.h>
+#include <kernel/irq.h>
+#include <kernel/pic.h>
 #define PS2_DATA_PORT       0x60
 #define PS2_STATUS_PORT     0x64
 
@@ -283,7 +284,16 @@ static void keyboard_process_scancode(uint8_t scancode)
         keyboard_buffer_push(character);
     }
 }
+static void keyboard_irq_handler(irq_frame_t *frame)
+{
+    (void)frame;
 
+    /*
+     * Drain the PS/2 controller and decode
+     * the available scancode(s).
+     */
+    keyboard_poll();
+}
 void keyboard_initialize(void)
 {
     keyboard_buffer_head = 0;
@@ -301,6 +311,8 @@ void keyboard_initialize(void)
     {
         (void)inb(PS2_DATA_PORT);
     }
+    irq_register_handler(1, keyboard_irq_handler);
+    pic_clear_mask(1);
 }
 
 void keyboard_poll(void)
