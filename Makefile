@@ -27,7 +27,8 @@ C_OBJS  = \
           build/gdt.o \
           build/idt.o \
           build/pic.o \
-          build/irq.o
+          build/irq.o \
+          build/timer.o
 
 ASM_OBJ       = build/boot.o
 GDT_ASM_OBJ   = build/gdt_flush.o
@@ -162,6 +163,9 @@ build/irq.o: kernel/irq.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
+build/timer.o: kernel/timer.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
 
 # ---------------------------------------------------------
 # Link kernel

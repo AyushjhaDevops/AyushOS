@@ -7,35 +7,36 @@
 #include <kernel/idt.h>
 #include <kernel/pic.h>
 #include <kernel/irq.h>
+#include <kernel/timer.h>
 
+/*
+ * Process characters received from the keyboard buffer.
+ */
 static void process_keyboard_input(void)
 {
     while (keyboard_has_char())
     {
-        char character =
-            keyboard_getchar();
+        char character = keyboard_getchar();
 
         /*
-         * Handle backspace.
-         *
-         * We will improve terminal editing
-         * in a later phase.
+         * Backspace handling will be improved later.
          */
         if (character == '\b')
-        {
             continue;
-        }
 
         terminal_putchar(character);
     }
 }
 
+/*
+ * Kernel entry point.
+ */
 void kernel_main(void)
 {
     /*
-     * --------------------------------------------------
-     * Terminal
-     * --------------------------------------------------
+     * ========================================================
+     * TERMINAL
+     * ========================================================
      */
 
     terminal_initialize();
@@ -53,9 +54,9 @@ void kernel_main(void)
     );
 
     /*
-     * --------------------------------------------------
+     * ========================================================
      * GDT
-     * --------------------------------------------------
+     * ========================================================
      */
 
     gdt_initialize();
@@ -73,9 +74,9 @@ void kernel_main(void)
     );
 
     /*
-     * --------------------------------------------------
+     * ========================================================
      * IDT
-     * --------------------------------------------------
+     * ========================================================
      */
 
     idt_initialize();
@@ -93,9 +94,9 @@ void kernel_main(void)
     );
 
     /*
-     * --------------------------------------------------
+     * ========================================================
      * PIC
-     * --------------------------------------------------
+     * ========================================================
      */
 
     pic_initialize();
@@ -109,9 +110,9 @@ void kernel_main(void)
     );
 
     /*
-     * --------------------------------------------------
-     * IRQ subsystem
-     * --------------------------------------------------
+     * ========================================================
+     * IRQ SUBSYSTEM
+     * ========================================================
      */
 
     irq_initialize();
@@ -121,9 +122,17 @@ void kernel_main(void)
     );
 
     /*
-     * --------------------------------------------------
-     * Keyboard
-     * --------------------------------------------------
+     * ========================================================
+     * TIMER
+     * ========================================================
+     */
+
+    timer_initialize();
+
+    /*
+     * ========================================================
+     * KEYBOARD
+     * ========================================================
      */
 
     keyboard_initialize();
@@ -137,48 +146,83 @@ void kernel_main(void)
     );
 
     /*
-     * --------------------------------------------------
-     * Enable CPU hardware interrupts
-     * --------------------------------------------------
+     * ========================================================
+     * ENABLE HARDWARE INTERRUPTS
+     * ========================================================
      */
 
     klog_info(
         "Enabling hardware interrupts"
     );
 
-    __asm__ volatile (
-        "sti"
-    );
+    __asm__ volatile ("sti");
 
     klog_ok(
         "Hardware interrupts enabled"
     );
+
+    /*
+     * ========================================================
+     * SHELL
+     * ========================================================
+     */
 
     terminal_write(
         "\nAyushOS> "
     );
 
     /*
-     * --------------------------------------------------
-     * Kernel main loop
-     * --------------------------------------------------
+     * ========================================================
+     * PHASE 8 TIMING TEST
+     * ========================================================
+     *
+     * We print a status message once every second.
+     *
+     * The timer interrupt continues to run in the
+     * background.
      */
+
+    uint32_t last_second = 0;
 
     while (1)
     {
         /*
-         * Wait for the next interrupt.
-         *
-         * Keyboard IRQ1 will wake the CPU.
-         */
-        __asm__ volatile (
-            "hlt"
-        );
-
-        /*
-         * Process characters that were placed
-         * into the keyboard buffer by IRQ1.
+         * Process keyboard input.
          */
         process_keyboard_input();
+
+        /*
+         * Read current uptime.
+         */
+        uint32_t milliseconds =
+            timer_get_milliseconds();
+
+        uint32_t current_second =
+            milliseconds / 1000U;
+
+        /*
+         * Print once per second.
+         */
+        if (current_second != last_second)
+        {
+            last_second = current_second;
+
+            kprintf(
+                "\n[TIME] uptime=%u ms ticks=%u\n",
+                milliseconds,
+                timer_get_ticks()
+            );
+
+            terminal_write(
+                "AyushOS> "
+            );
+        }
+
+        /*
+         * Wait for an interrupt.
+         *
+         * Normally this will be the PIT's IRQ0.
+         */
+        __asm__ volatile ("hlt");
     }
 }
