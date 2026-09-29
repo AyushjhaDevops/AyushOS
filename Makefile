@@ -22,14 +22,19 @@ C_OBJS  = \
           build/terminal.o \
           build/kprintf.o \
           build/keyboard.o \
-          build/gdt.o
+          build/gdt.o \
+          build/idt.o
 
 ASM_OBJ      = build/boot.o
 GDT_ASM_OBJ  = build/gdt_flush.o
+IDT_ASM_OBJ  = build/idt_flush.o
+ISR_ASM_OBJ  = build/interrupts.o
 
 OBJS = \
        $(ASM_OBJ) \
        $(GDT_ASM_OBJ) \
+       $(IDT_ASM_OBJ) \
+       $(ISR_ASM_OBJ) \
        $(C_OBJS)
 
 ISO_DIR  = iso
@@ -66,6 +71,17 @@ build/keyboard.o: kernel/drivers/keyboard.c
 build/gdt.o: kernel/gdt.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
+build/idt.o: kernel/idt.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) -Iinclude -c $< -o $@
+
+build/idt_flush.o: arch/x86/idt_flush.asm
+	@mkdir -p build
+	$(ASM) -f elf32 $< -o $@
+
+build/interrupts.o: arch/x86/interrupts.asm
+	@mkdir -p build
+	$(ASM) -f elf32 $< -o $@
 
 $(KERNEL): $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^

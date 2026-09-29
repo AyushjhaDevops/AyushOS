@@ -4,7 +4,7 @@
 #include <kernel/kprintf.h>
 #include <kernel/keyboard.h>
 #include <kernel/gdt.h>
-
+#include <kernel/idt.h>
 static void process_keyboard_input(void)
 {
     while (keyboard_has_char())
@@ -32,11 +32,10 @@ void kernel_main(void)
     klog_ok("VGA text mode ready");
 
     klog_info("Kernel entry point reached");
-    klog_info("Phase 4: Global Descriptor Table");
+    klog_info("Phase 5: Interrupt Descriptor Table");
 
     /*
-     * Initialize our own GDT before continuing
-     * with the rest of kernel initialization.
+     * Phase 4
      */
     gdt_initialize();
 
@@ -44,6 +43,17 @@ void kernel_main(void)
     klog_info("Kernel code segment: 0x08");
     klog_info("Kernel data segment: 0x10");
 
+    /*
+     * Phase 5
+     */
+    idt_initialize();
+
+    klog_ok("IDT initialized");
+    klog_info("CPU exception handlers installed");
+
+    /*
+     * Phase 3
+     */
     keyboard_initialize();
 
     klog_ok("PS/2 keyboard initialized");
