@@ -10,18 +10,43 @@
 #include <kernel/timer.h>
 #include <kernel/process.h>
 
+
 /*
- * ============================================================
- * TEST PROCESSES
- * ============================================================
- *
- * These functions are NOT executed in Phase 9.
- *
- * They are process entry points stored inside the PCB.
- *
- * Phase 10 will introduce context switching and actually
- * transfer CPU execution to these functions.
+ * Process A.
  */
+static void test_process_a(void)
+{
+    while (1)
+    {
+        kprintf(
+            "\n[PROC-A] PID=%u executing\n",
+            process_current_pid()
+        );
+
+        /*
+         * Halt until an interrupt arrives.
+         */
+        __asm__ volatile ("hlt");
+    }
+}
+
+
+/*
+ * Process B.
+ */
+static void test_process_b(void)
+{
+    while (1)
+    {
+        kprintf(
+            "\n[PROC-B] PID=%u executing\n",
+            process_current_pid()
+        );
+
+        __asm__ volatile ("hlt");
+    }
+}
+
 
 /*
  * Idle process.
@@ -34,34 +59,9 @@ static void idle_process(void)
     }
 }
 
-/*
- * Test process A.
- */
-static void test_process_a(void)
-{
-    while (1)
-    {
-        /*
-         * Phase 10 will eventually allow this process
-         * to execute independently.
-         */
-        __asm__ volatile ("hlt");
-    }
-}
 
 /*
- * Test process B.
- */
-static void test_process_b(void)
-{
-    while (1)
-    {
-        __asm__ volatile ("hlt");
-    }
-}
-
-/*
- * Process keyboard characters.
+ * Keyboard processing.
  */
 static void process_keyboard_input(void)
 {
@@ -73,21 +73,23 @@ static void process_keyboard_input(void)
         if (character == '\b')
             continue;
 
-        terminal_putchar(character);
+        terminal_putchar(
+            character
+        );
     }
 }
 
+
 /*
- * Kernel entry point.
+ * Kernel entry.
  */
 void kernel_main(void)
 {
     /*
-     * ========================================================
-     * TERMINAL
-     * ========================================================
+     * -------------------------
+     * Terminal
+     * -------------------------
      */
-
     terminal_initialize();
 
     klog_ok(
@@ -102,12 +104,12 @@ void kernel_main(void)
         "Kernel entry point reached"
     );
 
-    /*
-     * ========================================================
-     * GDT
-     * ========================================================
-     */
 
+    /*
+     * -------------------------
+     * GDT
+     * -------------------------
+     */
     gdt_initialize();
 
     klog_ok(
@@ -122,12 +124,12 @@ void kernel_main(void)
         "Kernel data segment: 0x10"
     );
 
-    /*
-     * ========================================================
-     * IDT
-     * ========================================================
-     */
 
+    /*
+     * -------------------------
+     * IDT
+     * -------------------------
+     */
     idt_initialize();
 
     klog_ok(
@@ -142,12 +144,12 @@ void kernel_main(void)
         "Hardware IRQ vectors 32-47 installed"
     );
 
-    /*
-     * ========================================================
-     * PIC
-     * ========================================================
-     */
 
+    /*
+     * -------------------------
+     * PIC
+     * -------------------------
+     */
     pic_initialize();
 
     klog_ok(
@@ -158,42 +160,40 @@ void kernel_main(void)
         "PIC remapped to vectors 32-47"
     );
 
-    /*
-     * ========================================================
-     * IRQ
-     * ========================================================
-     */
 
+    /*
+     * -------------------------
+     * IRQ subsystem
+     * -------------------------
+     */
     irq_initialize();
 
     klog_ok(
         "IRQ subsystem initialized"
     );
 
-    /*
-     * ========================================================
-     * PROCESS MANAGER
-     * ========================================================
-     *
-     * Initialize before enabling hardware interrupts.
-     */
 
+    /*
+     * -------------------------
+     * Process subsystem
+     * -------------------------
+     */
     process_initialize();
 
-    /*
-     * ========================================================
-     * PIT
-     * ========================================================
-     */
 
+    /*
+     * -------------------------
+     * Timer
+     * -------------------------
+     */
     timer_initialize();
 
-    /*
-     * ========================================================
-     * KEYBOARD
-     * ========================================================
-     */
 
+    /*
+     * -------------------------
+     * Keyboard
+     * -------------------------
+     */
     keyboard_initialize();
 
     klog_ok(
@@ -204,10 +204,11 @@ void kernel_main(void)
         "Keyboard IRQ1 registered"
     );
 
+
     /*
-     * ========================================================
-     * CREATE PROCESSES
-     * ========================================================
+     * -------------------------
+     * Create processes
+     * -------------------------
      */
 
     uint32_t idle_pid =
@@ -217,35 +218,40 @@ void kernel_main(void)
             0
         );
 
-    uint32_t test_a_pid =
+    uint32_t process_a_pid =
         process_create(
             "test-A",
             test_process_a,
             10
         );
 
-    uint32_t test_b_pid =
+    uint32_t process_b_pid =
         process_create(
             "test-B",
             test_process_b,
             10
         );
 
+
+    /*
+     * Creation results.
+     */
     if (idle_pid == 0)
     {
         klog_error(
-            "Failed to create idle process"
+            "Failed to create idle"
         );
     }
     else
     {
         kprintf(
-            "[ OK ] Created idle process PID=%u\n",
+            "[ OK ] Created idle PID=%u\n",
             idle_pid
         );
     }
 
-    if (test_a_pid == 0)
+
+    if (process_a_pid == 0)
     {
         klog_error(
             "Failed to create test-A"
@@ -255,11 +261,12 @@ void kernel_main(void)
     {
         kprintf(
             "[ OK ] Created test-A PID=%u\n",
-            test_a_pid
+            process_a_pid
         );
     }
 
-    if (test_b_pid == 0)
+
+    if (process_b_pid == 0)
     {
         klog_error(
             "Failed to create test-B"
@@ -269,36 +276,37 @@ void kernel_main(void)
     {
         kprintf(
             "[ OK ] Created test-B PID=%u\n",
-            test_b_pid
+            process_b_pid
         );
     }
 
-    /*
-     * ========================================================
-     * SELECT INITIAL PROCESS
-     * ========================================================
-     *
-     * Phase 9 does not switch CPU execution.
-     *
-     * We only mark PID 1 as RUNNING so IRQ0 can account
-     * runtime ticks against it.
-     */
 
+    /*
+     * Establish first running process.
+     *
+     * We intentionally select test-A.
+     */
     process_set_state(
-        idle_pid,
+        process_a_pid,
         PROCESS_RUNNING
     );
 
-    /*
-     * Other processes remain READY.
-     */
+
+    kprintf(
+        "\n[PROCESS] Initial process selected: PID=%u\n",
+        process_current_pid()
+    );
+
 
     /*
-     * ========================================================
-     * ENABLE INTERRUPTS
-     * ========================================================
+     * Display process table.
      */
+    process_list();
 
+
+    /*
+     * Enable interrupts.
+     */
     klog_info(
         "Enabling hardware interrupts"
     );
@@ -309,61 +317,74 @@ void kernel_main(void)
         "Hardware interrupts enabled"
     );
 
+
     terminal_write(
         "\nAyushOS> "
     );
 
+
     /*
-     * ========================================================
-     * PHASE 9 DEMONSTRATION
-     * ========================================================
+     * ------------------------------------------------
+     * PHASE 10 MANUAL CONTEXT SWITCH DEMONSTRATION
+     * ------------------------------------------------
+     *
+     * We allow the kernel to run for approximately
+     * one second and then manually switch to B.
+     *
+     * Phase 11 will automate this through the scheduler.
      */
+
+    uint32_t switch_stage = 0;
 
     uint32_t last_second = 0;
 
-    uint32_t process_table_printed = 0;
 
     while (1)
     {
-        /*
-         * Keyboard input.
-         */
         process_keyboard_input();
 
-        /*
-         * Current system time.
-         */
+
         uint32_t milliseconds =
             timer_get_milliseconds();
+
 
         uint32_t current_second =
             milliseconds / 1000U;
 
+
         /*
-         * Print process table once after
-         * the first second.
+         * After two seconds:
+         *
+         * A -> B
          */
         if (
-            current_second >= 1
+            current_second >= 2
             &&
-            process_table_printed == 0
+            switch_stage == 0
         )
         {
-            process_table_printed = 1;
+            switch_stage = 1;
 
             kprintf(
-                "\n[PROCESS] Process subsystem online\n"
+                "\n[CONTEXT] Switching from PID=%u to PID=%u\n",
+                process_current_pid(),
+                process_b_pid
             );
 
-            process_list();
-
-            terminal_write(
-                "\nAyushOS> "
+            process_switch_to(
+                process_b_pid
             );
+
+            /*
+             * Execution may never return here
+             * until process B performs another
+             * context switch.
+             */
         }
 
+
         /*
-         * Print timer/process accounting once per second.
+         * Kernel status once per second.
          */
         if (
             current_second !=
@@ -376,12 +397,13 @@ void kernel_main(void)
             process_t *current =
                 process_current();
 
-            uint32_t runtime =
-                0;
+            uint32_t runtime = 0;
 
             if (current != 0)
+            {
                 runtime =
                     current->runtime_ticks;
+            }
 
             kprintf(
                 "\n[TIME] uptime=%u ms ticks=%u\n",
@@ -394,16 +416,11 @@ void kernel_main(void)
                 process_current_pid(),
                 runtime
             );
-
-            terminal_write(
-                "AyushOS> "
-            );
         }
 
+
         /*
-         * Wait for an interrupt.
-         *
-         * PIT IRQ0 occurs approximately every 10 ms.
+         * Wait for the next interrupt.
          */
         __asm__ volatile ("hlt");
     }
