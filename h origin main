@@ -1,0 +1,248 @@
+[1mdiff --git a/Makefile b/Makefile[m
+[1mindex c030b0a..216a1c3 100644[m
+[1m--- a/Makefile[m
+[1m+++ b/Makefile[m
+[36m@@ -27,7 +27,8 @@[m [mC_OBJS  = \[m
+           build/gdt.o \[m
+           build/idt.o \[m
+           build/pic.o \[m
+[31m-          build/irq.o[m
+[32m+[m[32m          build/irq.o \[m
+[32m+[m[32m          build/timer.o[m
+ [m
+ ASM_OBJ       = build/boot.o[m
+ GDT_ASM_OBJ   = build/gdt_flush.o[m
+[36m@@ -162,6 +163,9 @@[m [mbuild/irq.o: kernel/irq.c[m
+ 	@mkdir -p build[m
+ 	$(CC) $(CFLAGS) -Iinclude -c $< -o $@[m
+ [m
+[32m+[m[32mbuild/timer.o: kernel/timer.c[m
+[32m+[m	[32m@mkdir -p build[m
+[32m+[m	[32m$(CC) $(CFLAGS) -Iinclude -c $< -o $@[m
+ [m
+ # ---------------------------------------------------------[m
+ # Link kernel[m
+[1mdiff --git a/kernel/kernel.c b/kernel/kernel.c[m
+[1mindex a5ed0c4..059bdfd 100644[m
+[1m--- a/kernel/kernel.c[m
+[1m+++ b/kernel/kernel.c[m
+[36m@@ -7,35 +7,36 @@[m
+ #include <kernel/idt.h>[m
+ #include <kernel/pic.h>[m
+ #include <kernel/irq.h>[m
+[32m+[m[32m#include <kernel/timer.h>[m
+ [m
+[32m+[m[32m/*[m
+[32m+[m[32m * Process characters received from the keyboard buffer.[m
+[32m+[m[32m */[m
+ static void process_keyboard_input(void)[m
+ {[m
+     while (keyboard_has_char())[m
+     {[m
+[31m-        char character =[m
+[31m-            keyboard_getchar();[m
+[32m+[m[32m        char character = keyboard_getchar();[m
+ [m
+         /*[m
+[31m-         * Handle backspace.[m
+[31m-         *[m
+[31m-         * We will improve terminal editing[m
+[31m-         * in a later phase.[m
+[32m+[m[32m         * Backspace handling will be improved later.[m
+          */[m
+         if (character == '\b')[m
+[31m-        {[m
+             continue;[m
+[31m-        }[m
+ [m
+         terminal_putchar(character);[m
+     }[m
+ }[m
+ [m
+[32m+[m[32m/*[m
+[32m+[m[32m * Kernel entry point.[m
+[32m+[m[32m */[m
+ void kernel_main(void)[m
+ {[m
+     /*[m
+[31m-     * --------------------------------------------------[m
+[31m-     * Terminal[m
+[31m-     * --------------------------------------------------[m
+[32m+[m[32m     * ========================================================[m
+[32m+[m[32m     * TERMINAL[m
+[32m+[m[32m     * ========================================================[m
+      */[m
+ [m
+     terminal_initialize();[m
+[36m@@ -53,9 +54,9 @@[m [mvoid kernel_main(void)[m
+     );[m
+ [m
+     /*[m
+[31m-     * --------------------------------------------------[m
+[32m+[m[32m     * ========================================================[m
+      * GDT[m
+[31m-     * --------------------------------------------------[m
+[32m+[m[32m     * ========================================================[m
+      */[m
+ [m
+     gdt_initialize();[m
+[36m@@ -73,9 +74,9 @@[m [mvoid kernel_main(void)[m
+     );[m
+ [m
+     /*[m
+[31m-     * --------------------------------------------------[m
+[32m+[m[32m     * ========================================================[m
+      * IDT[m
+[31m-     * --------------------------------------------------[m
+[32m+[m[32m     * ========================================================[m
+      */[m
+ [m
+     idt_initialize();[m
+[36m@@ -93,9 +94,9 @@[m [mvoid kernel_main(void)[m
+     );[m
+ [m
+     /*[m
+[31m-     * --------------------------------------------------[m
+[32m+[m[32m     * ========================================================[m
+      * PIC[m
+[31m-     * --------------------------------------------------[m
+[32m+[m[32m     * ========================================================[m
+      */[m
+ [m
+     pic_initialize();[m
+[36m@@ -109,9 +110,9 @@[m [mvoid kernel_main(void)[m
+     );[m
+ [m
+     /*[m
+[31m-     * --------------------------------------------------[m
+[31m-     * IRQ subsystem[m
+[31m-     * --------------------------------------------------[m
+[32m+[m[32m     * ========================================================[m
+[32m+[m[32m     * IRQ SUBSYSTEM[m
+[32m+[m[32m     * ========================================================[m
+      */[m
+ [m
+     irq_initialize();[m
+[36m@@ -121,9 +122,17 @@[m [mvoid kernel_main(void)[m
+     );[m
+ [m
+     /*[m
+[31m-     * --------------------------------------------------[m
+[31m-     * Keyboard[m
+[31m-     * --------------------------------------------------[m
+[32m+[m[32m     * ========================================================[m
+[32m+[m[32m     * TIMER[m
+[32m+[m[32m     * ========================================================[m
+[32m+[m[32m     */[m
+[32m+[m
+[32m+[m[32m    timer_initialize();[m
+[32m+[m
+[32m+[m[32m    /*[m
+[32m+[m[32m     * ========================================================[m
+[32m+[m[32m     * KEYBOARD[m
+[32m+[m[32m     * ========================================================[m
+      */[m
+ [m
+     keyboard_initialize();[m
+[36m@@ -137,48 +146,83 @@[m [mvoid kernel_main(void)[m
+     );[m
+ [m
+     /*[m
+[31m-     * --------------------------------------------------[m
+[31m-     * Enable CPU hardware interrupts[m
+[31m-     * --------------------------------------------------[m
+[32m+[m[32m     * ========================================================[m
+[32m+[m[32m     * ENABLE HARDWARE INTERRUPTS[m
+[32m+[m[32m     * ========================================================[m
+      */[m
+ [m
+     klog_info([m
+         "Enabling hardware interrupts"[m
+     );[m
+ [m
+[31m-    __asm__ volatile ([m
+[31m-        "sti"[m
+[31m-    );[m
+[32m+[m[32m    __asm__ volatile ("sti");[m
+ [m
+     klog_ok([m
+         "Hardware interrupts enabled"[m
+     );[m
+ [m
+[32m+[m[32m    /*[m
+[32m+[m[32m     * ========================================================[m
+[32m+[m[32m     * SHELL[m
+[32m+[m[32m     * ========================================================[m
+[32m+[m[32m     */[m
+[32m+[m
+     terminal_write([m
+         "\nAyushOS> "[m
+     );[m
+ [m
+     /*[m
+[31m-     * --------------------------------------------------[m
+[31m-     * Kernel main loop[m
+[31m-     * --------------------------------------------------[m
+[32m+[m[32m     * ========================================================[m
+[32m+[m[32m     * PHASE 8 TIMING TEST[m
+[32m+[m[32m     * ========================================================[m
+[32m+[m[32m     *[m
+[32m+[m[32m     * We print a status message once every second.[m
+[32m+[m[32m     *[m
+[32m+[m[32m     * The timer interrupt continues to run in the[m
+[32m+[m[32m     * background.[m
+      */[m
+ [m
+[32m+[m[32m    uint32_t last_second = 0;[m
+[32m+[m
+     while (1)[m
+     {[m
+         /*[m
+[31m-         * Wait for the next interrupt.[m
+[31m-         *[m
+[31m-         * Keyboard IRQ1 will wake the CPU.[m
+[32m+[m[32m         * Process keyboard input.[m
+          */[m
+[31m-        __asm__ volatile ([m
+[31m-            "hlt"[m
+[31m-        );[m
+[32m+[m[32m        process_keyboard_input();[m
+ [m
+         /*[m
+[31m-         * Process characters that were placed[m
+[31m-         * into the keyboard buffer by IRQ1.[m
+[32m+[m[32m         * Read current uptime.[m
+          */[m
+[31m-        process_keyboard_input();[m
+[32m+[m[32m        uint32_t milliseconds =[m
+[32m+[m[32m            timer_get_milliseconds();[m
+[32m+[m
+[32m+[m[32m        uint32_t current_second =[m
+[32m+[m[32m            milliseconds / 1000U;[m
+[32m+[m
+[32m+[m[32m        /*[m
+[32m+[m[32m         * Print once per second.[m
+[32m+[m[32m         */[m
+[32m+[m[32m        if (current_second != last_second)[m
+[32m+[m[32m        {[m
+[32m+[m[32m            last_second = current_second;[m
+[32m+[m
+[32m+[m[32m            kprintf([m
+[32m+[m[32m                "\n[TIME] uptime=%u ms ticks=%u\n",[m
+[32m+[m[32m                milliseconds,[m
+[32m+[m[32m                timer_get_ticks()[m
+[32m+[m[32m            );[m
+[32m+[m
+[32m+[m[32m            terminal_write([m
+[32m+[m[32m                "AyushOS> "[m
+[32m+[m[32m            );[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        /*[m
+[32m+[m[32m         * Wait for an interrupt.[m
+[32m+[m[32m         *[m
+[32m+[m[32m         * Normally this will be the PIT's IRQ0.[m
+[32m+[m[32m         */[m
+[32m+[m[32m        __asm__ volatile ("hlt");[m
+     }[m
+ }[m
