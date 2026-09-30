@@ -6,9 +6,12 @@
 #define IRQ_COUNT 16
 
 /*
- * Stack frame created by irq.asm.
+ * Interrupt frame for kernel-mode IRQs.
  *
- * Layout:
+ * AyushOS currently runs everything in ring 0, so the CPU does
+ * NOT push useresp/ss when entering an interrupt.
+ *
+ * Stack layout:
  *
  * DS
  * EDI
@@ -20,12 +23,10 @@
  * ECX
  * EAX
  * INT_NO
- * ERROR_CODE
+ * ERR_CODE
  * EIP
  * CS
  * EFLAGS
- * USERESP
- * SS
  */
 typedef struct __attribute__((packed))
 {
@@ -46,32 +47,33 @@ typedef struct __attribute__((packed))
     uint32_t eip;
     uint32_t cs;
     uint32_t eflags;
-    uint32_t useresp;
-    uint32_t ss;
 
 } irq_frame_t;
 
 /*
- * IRQ handler function type.
+ * IRQ handlers can return a different frame.
+ *
+ * This is important for preemptive scheduling:
+ *
+ * current process frame
+ *        ↓
+ * scheduler chooses another process
+ *        ↓
+ * return next process frame
+ *        ↓
+ * IRQ assembly restores next process
  */
-typedef void (*irq_handler_t)(irq_frame_t *frame);
+typedef irq_frame_t *(*irq_handler_t)(irq_frame_t *frame);
 
-/*
- * Initialize IRQ handler table.
- */
 void irq_initialize(void);
 
-/*
- * Register a handler for IRQ 0-15.
- */
 void irq_register_handler(
     uint8_t irq,
     irq_handler_t handler
 );
 
-/*
- * Main IRQ dispatcher.
- */
-void irq_handler(irq_frame_t *frame);
+irq_frame_t *irq_handler(
+    irq_frame_t *frame
+);
 
 #endif

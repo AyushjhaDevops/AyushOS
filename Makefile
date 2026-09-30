@@ -31,12 +31,11 @@ C_OBJS  = \
           build/timer.o \
           build/process.o
 
-ASM_OBJ          = build/boot.o
-GDT_ASM_OBJ      = build/gdt_flush.o
-IDT_ASM_OBJ      = build/idt_flush.o
-ISR_ASM_OBJ      = build/interrupts.o
-IRQ_ASM_OBJ      = build/irq_asm.o
-CONTEXT_ASM_OBJ  = build/context_switch.o
+ASM_OBJ      = build/boot.o
+GDT_ASM_OBJ  = build/gdt_flush.o
+IDT_ASM_OBJ  = build/idt_flush.o
+ISR_ASM_OBJ  = build/interrupts.o
+IRQ_ASM_OBJ  = build/irq_asm.o
 
 OBJS = \
        $(ASM_OBJ) \
@@ -44,15 +43,12 @@ OBJS = \
        $(IDT_ASM_OBJ) \
        $(ISR_ASM_OBJ) \
        $(IRQ_ASM_OBJ) \
-       $(CONTEXT_ASM_OBJ) \
        $(C_OBJS)
 
 ISO_DIR  = iso
 ISO_FILE = AyushOS.iso
 
-
 .PHONY: all clean iso run debug
-
 
 all: $(KERNEL)
 
@@ -78,11 +74,6 @@ build/interrupts.o: arch/x86/interrupts.asm
 
 
 build/irq_asm.o: arch/x86/irq.asm
-	@mkdir -p build
-	$(ASM) -f elf32 $< -o $@
-
-
-build/context_switch.o: arch/x86/context_switch.asm
 	@mkdir -p build
 	$(ASM) -f elf32 $< -o $@
 

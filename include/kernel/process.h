@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include <kernel/irq.h>
+
 #define PROCESS_MAX 16
 #define PROCESS_STACK_SIZE 4096
 
@@ -15,35 +17,10 @@ typedef enum
     PROCESS_RUNNING,
     PROCESS_BLOCKED,
     PROCESS_TERMINATED
+
 } process_state_t;
 
 typedef void (*process_entry_t)(void);
-
-/*
- * CPU context saved by context_switch.asm.
- *
- * The order is important.
- *
- * context_switch.asm must save and restore
- * registers in exactly this order.
- */
-typedef struct __attribute__((packed))
-{
-    uint32_t edi;
-    uint32_t esi;
-    uint32_t ebp;
-
-    uint32_t ebx;
-    uint32_t edx;
-    uint32_t ecx;
-    uint32_t eax;
-
-    uint32_t eip;
-    uint32_t eflags;
-
-    uint32_t cs;
-    uint32_t ds;
-} process_context_t;
 
 typedef struct
 {
@@ -61,25 +38,31 @@ typedef struct
     uint8_t kernel_stack[PROCESS_STACK_SIZE];
 
     /*
-     * Current stack pointer used by
-     * the context switcher.
+     * Points to an irq_frame_t stored inside kernel_stack.
+     *
+     * When a process is preempted, this points to the exact
+     * interrupt frame needed to resume it.
      */
     uint32_t kernel_stack_pointer;
 
     /*
-     * Saved CPU context.
-     */
-    process_context_t context;
-
-    /*
-     * Scheduler/accounting data.
+     * Scheduler statistics.
      */
     uint32_t runtime_ticks;
     uint32_t creation_tick;
     uint32_t wakeup_tick;
 
     uint32_t priority;
+
     uint32_t scheduling_count;
+
+    uint32_t waiting_ticks;
+
+    uint32_t first_run_tick;
+    uint32_t response_ticks;
+
+    uint32_t completion_tick;
+    uint32_t turnaround_ticks;
 
 } process_t;
 
@@ -95,20 +78,12 @@ uint32_t process_create(
     uint32_t priority
 );
 
-
-/*
- * Process lookup.
- */
 process_t *process_get(uint32_t pid);
 
 process_t *process_current(void);
 
 uint32_t process_current_pid(void);
 
-
-/*
- * State management.
- */
 void process_set_state(
     uint32_t pid,
     process_state_t state
@@ -116,38 +91,38 @@ void process_set_state(
 
 void process_terminate(uint32_t pid);
 
-
-/*
- * Timer integration.
- */
 void process_tick(void);
 
-
-/*
- * Process statistics.
- */
 uint32_t process_count(void);
 
 void process_list(void);
 
 
 /*
- * Context switching.
+ * Phase 11 scheduler interface.
  */
-void process_switch_to(
-    uint32_t pid
+irq_frame_t *process_schedule_tick(
+    irq_frame_t *frame
 );
 
-void process_switch_next(void);
+uint32_t process_get_context_switches(void);
+
+uint32_t process_get_quantum_ticks(void);
+
+void process_set_quantum_ticks(
+    uint32_t quantum
+);
 
 
 /*
- * Process bootstrap.
+ * Kept for compatibility with Phase 10.
  *
- * This function is used as the initial
- * execution target for newly created
- * processes.
+ * Phase 11 uses interrupt-frame scheduling instead.
  */
+void process_switch_to(uint32_t pid);
+
+void process_switch_next(void);
+
 void process_bootstrap(void);
 
 #endif

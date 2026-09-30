@@ -13,15 +13,12 @@ void irq_initialize(void)
         irq_handlers[i] = 0;
     }
 
-    klog_ok(
-        "IRQ handler table initialized"
-    );
+    klog_ok("IRQ handler table initialized");
 }
 
 void irq_register_handler(
     uint8_t irq,
-    irq_handler_t handler
-)
+    irq_handler_t handler)
 {
     if (irq >= IRQ_COUNT)
     {
@@ -31,28 +28,25 @@ void irq_register_handler(
     irq_handlers[irq] = handler;
 }
 
-void irq_handler(irq_frame_t *frame)
+/*
+ * Main IRQ dispatcher.
+ *
+ * The handler may return the same frame or a completely different
+ * process frame.
+ */
+irq_frame_t *irq_handler(irq_frame_t *frame)
 {
     if (frame == 0)
     {
-        return;
+        return frame;
     }
 
     /*
-     * Hardware IRQ vector:
-     *
-     * IRQ0  -> vector 32
-     * IRQ1  -> vector 33
-     * ...
-     * IRQ15 -> vector 47
-     *
-     * Therefore:
-     *
-     * IRQ = vector - 32
+     * Hardware IRQ vectors start at 32.
      */
     if (frame->int_no < 32)
     {
-        return;
+        return frame;
     }
 
     uint8_t irq =
@@ -60,20 +54,24 @@ void irq_handler(irq_frame_t *frame)
 
     if (irq >= IRQ_COUNT)
     {
-        return;
+        return frame;
     }
 
     /*
-     * Call registered device handler.
+     * Execute registered handler.
+     *
+     * A timer handler may return a different frame because the
+     * scheduler may have selected another process.
      */
     if (irq_handlers[irq] != 0)
     {
-        irq_handlers[irq](frame);
+        frame = irq_handlers[irq](frame);
     }
 
     /*
-     * Tell the PIC that the interrupt
-     * has been completely handled.
+     * Acknowledge the interrupt after the handler has completed.
      */
     pic_send_eoi(irq);
+
+    return frame;
 }
