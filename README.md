@@ -1,56 +1,77 @@
 # AyushOS
 
-> **A research-oriented operating system built from scratch to explore kernel architecture, CPU execution, interrupts, process management, scheduling, memory management, user-space isolation, and low-level systems engineering.**
+> **A research-oriented operating system kernel built from scratch to explore low-level systems programming, x86 architecture, interrupts, process management, scheduling, memory management, and kernel design.**
 
-![Architecture](https://img.shields.io/badge/Architecture-x86%2032--bit-informational)
-![Kernel](https://img.shields.io/badge/Kernel-Experimental-orange)
-![Language](https://img.shields.io/badge/Language-C-blue)
-![Assembly](https://img.shields.io/badge/Assembly-NASM-red)
-![Bootloader](https://img.shields.io/badge/Bootloader-GRUB-purple)
-![Build](https://img.shields.io/badge/Build-Make-green)
-![Emulator](https://img.shields.io/badge/Emulator-QEMU-yellow)
-![Debugger](https://img.shields.io/badge/Debugger-GDB-blue)
-![Status](https://img.shields.io/badge/Status-Active%20Development-orange)
+[![Language](https://img.shields.io/badge/Language-C%20%2B%20NASM-blue)](https://github.com/AyushjhaDevops/AyushOS)
+[![Architecture](https://img.shields.io/badge/Architecture-x86%2032--bit-orange)](https://github.com/AyushjhaDevops/AyushOS)
+[![Bootloader](https://img.shields.io/badge/Bootloader-GRUB-green)](https://www.gnu.org/software/grub/)
+[![Emulator](https://img.shields.io/badge/Emulator-QEMU-red)](https://www.qemu.org/)
+[![Build](https://img.shields.io/badge/Build-GNU%20Make-yellow)](https://www.gnu.org/software/make/)
+[![Status](https://img.shields.io/badge/Status-Active%20Development-blueviolet)](https://github.com/AyushjhaDevops/AyushOS)
 
 ---
 
-## Overview
+## Table of Contents
 
-**AyushOS** is an experimental operating-system kernel developed from scratch for studying how an operating system interacts with the CPU, memory, hardware devices, and user programs.
+* [About](#about)
+* [Project Goals](#project-goals)
+* [Current Status](#current-status)
+* [Features](#features)
+* [Architecture](#architecture)
+* [Boot Flow](#boot-flow)
+* [Technology Stack](#technology-stack)
+* [Repository Structure](#repository-structure)
+* [Development Phases](#development-phases)
+* [Building AyushOS](#building-ayushos)
+* [Running in QEMU](#running-in-qemu)
+* [Debugging with GDB](#debugging-with-gdb)
+* [Kernel Subsystems](#kernel-subsystems)
+* [Development Workflow](#development-workflow)
+* [Testing Strategy](#testing-strategy)
+* [Roadmap](#roadmap)
+* [Research Direction](#research-direction)
+* [Learning Outcomes](#learning-outcomes)
+* [Limitations](#limitations)
+* [Contributing](#contributing)
+* [License](#license)
 
-The project starts at the bootloader/kernel boundary and progressively develops the major components required for a modern operating-system architecture.
+---
 
-The long-term goal is to transform AyushOS from a minimal educational kernel into a **research-oriented systems platform** for experimenting with:
+# About
 
-* Kernel architecture
+**AyushOS** is an experimental operating-system kernel developed from scratch for learning and researching how computers work at the hardware/software boundary.
+
+The project starts at the bootloader and kernel-entry level and progressively introduces fundamental operating-system concepts:
+
 * CPU execution
-* Protected mode
-* Interrupt handling
-* Hardware drivers
-* Physical and virtual memory
+* x86 protected mode
+* Kernel initialization
+* Global Descriptor Table (GDT)
+* Interrupt Descriptor Table (IDT)
+* CPU exceptions
+* Programmable Interrupt Controller (PIC)
+* Hardware IRQs
+* Timer interrupts
+* Keyboard input
 * Process management
-* CPU scheduling
+* CPU context switching
+* Physical memory management
+* Scheduling
+* User/kernel separation
 * System calls
-* User/kernel isolation
+* Virtual memory
 * Filesystems
 * Networking
 * Kernel security
 * Multicore execution
-* Operating-system research
 
-AyushOS is **not intended to replace Linux or other production operating systems**.
-
-Its purpose is to understand what happens underneath them.
+The primary goal is **understanding how an operating system works internally**, rather than creating a production replacement for Linux or another mature operating system.
 
 ---
 
-# Project Philosophy
+# Project Goals
 
-AyushOS follows a simple principle:
-
-> **Build from the hardware upward. Understand every layer. Measure what you build.**
-
-The project follows:
+AyushOS follows a bottom-up systems-engineering approach:
 
 ```text
 Understand
@@ -72,130 +93,377 @@ Document
 Research
 ```
 
-Every major subsystem should eventually contain:
+Each major subsystem is intended to eventually include:
 
 * Implementation
 * Architecture documentation
-* Tests or validation
+* Validation/testing
 * Debugging support
 * Performance measurements
 * Design notes
 
 ---
 
-# High-Level Architecture
+# Current Status
 
-The long-term AyushOS architecture is:
+AyushOS is currently an **experimental development kernel**.
+
+The repository already contains the foundational x86 kernel infrastructure including:
+
+* GRUB boot path
+* x86 assembly bootstrap
+* Kernel entry point
+* VGA terminal output
+* Kernel logging
+* GDT
+* IDT
+* Interrupt/exception infrastructure
+* PIC
+* IRQ handling
+* Timer infrastructure
+* Keyboard driver
+* Process-management infrastructure
+* Assembly-backed context switching
+
+The repository currently contains **14 commits** and is actively structured around incremental OS-development phases.
+
+### Implementation Status
+
+| Phase | Component                | Status |
+| ----: | ------------------------ | :----: |
+|     0 | Development Environment  |    ✅   |
+|     1 | Boot + Kernel Entry      |    ✅   |
+|     2 | Terminal + Logging       |    ✅   |
+|     3 | GDT                      |    ✅   |
+|     4 | IDT + Exceptions         |    ✅   |
+|     5 | PIC + IRQ                |    ✅   |
+|     6 | Timer + Keyboard         |    ✅   |
+|     7 | Physical Memory          |   🔄   |
+|     8 | Process Management       |   🔄   |
+|     9 | Preemptive Scheduler     |   🔄   |
+|    10 | User Mode + System Calls |    ⏳   |
+|    11 | Virtual Memory           |    ⏳   |
+|    12 | Kernel Heap              |    ⏳   |
+|    13 | Virtual File System      |    ⏳   |
+|    14 | Filesystem               |    ⏳   |
+|    15 | Shell                    |    ⏳   |
+|    16 | ELF Loader               |    ⏳   |
+|    17 | Networking               |    ⏳   |
+|    18 | Security Research        |    ⏳   |
+|    19 | SMP / Multicore          |    ⏳   |
+|    20 | OS Research Platform     |    ⏳   |
+
+> **Legend:**
+> ✅ Implemented foundation
+> 🔄 Currently being developed
+> ⏳ Planned / future work
+
+The status above reflects implementation maturity rather than simply whether a source file exists.
+
+---
+
+# Features
+
+## Currently Implemented / In Development
+
+### Boot Process
+
+AyushOS uses GRUB to load the kernel and transfer execution to the kernel entry point.
 
 ```text
-┌──────────────────────────────────────────────────────┐
-│                    USER SPACE                        │
-│                                                      │
-│        Applications / Shell / Utilities              │
-└─────────────────────────┬────────────────────────────┘
-                          │
-                          │ System Calls
-                          ▼
-┌──────────────────────────────────────────────────────┐
-│                    KERNEL SPACE                      │
-│                                                      │
-│  ┌───────────────┐   ┌────────────────────────────┐  │
-│  │ Process       │   │ System Call Interface      │  │
-│  │ Management    │   └────────────────────────────┘  │
-│  └───────┬───────┘                                  │
-│          │                                            │
-│  ┌───────▼───────┐   ┌────────────────────────────┐  │
-│  │ Scheduler      │   │ Virtual Memory             │  │
-│  └───────┬───────┘   └────────────────────────────┘  │
-│          │                                            │
-│  ┌───────▼───────┐   ┌────────────────────────────┐  │
-│  │ Memory        │   │ Virtual File System         │  │
-│  │ Manager       │   └────────────────────────────┘  │
-│  └───────────────┘                                  │
-│                                                      │
-│  ┌────────────────────────────────────────────────┐  │
-│  │              Hardware Drivers                  │  │
-│  │ Timer │ Keyboard │ Storage │ Network │ Console  │  │
-│  └───────────────────────┬────────────────────────┘  │
-└──────────────────────────┼───────────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────────┐
-│                    CPU / HARDWARE                    │
-│                                                      │
-│          x86 CPU • Memory • Devices • IRQ            │
-└──────────────────────────────────────────────────────┘
+BIOS / Firmware
+      ↓
+     GRUB
+      ↓
+  boot.asm
+      ↓
+Kernel Entry
+      ↓
+kernel_main()
 ```
 
 ---
 
-# Current Kernel Architecture
+## Kernel Terminal
 
-The current implementation contains the foundational x86 kernel infrastructure:
+The kernel provides low-level terminal functionality using VGA text memory.
+
+Current functionality includes:
+
+* Character output
+* String output
+* Integer formatting
+* Kernel logging
+* Diagnostic messages
+* Debug output
+
+Example:
 
 ```text
-                         ┌──────────────────┐
-                         │       GRUB       │
-                         │    Bootloader    │
-                         └────────┬─────────┘
-                                  │
-                                  ▼
-                         ┌──────────────────┐
-                         │   x86 Boot Code  │
-                         │      NASM        │
-                         └────────┬─────────┘
-                                  │
-                                  ▼
-                         ┌──────────────────┐
-                         │   Kernel Entry   │
-                         │   kernel_main()  │
-                         └────────┬─────────┘
-                                  │
-              ┌───────────────────┼───────────────────┐
-              │                   │                   │
-              ▼                   ▼                   ▼
-        ┌──────────┐        ┌──────────┐        ┌──────────┐
-        │   GDT    │        │   IDT    │        │   PIC    │
-        │Segmentation│      │Interrupt │        │  IRQ     │
-        └──────────┘        └────┬─────┘        └────┬─────┘
-                                  │                   │
-                                  └────────┬──────────┘
+[ OK ] Terminal initialized
+[ OK ] GDT initialized
+[ OK ] IDT initialized
+[ OK ] PIC initialized
+[INFO] Kernel boot complete
+```
+
+---
+
+# GDT
+
+The Global Descriptor Table establishes the segmentation model required by the x86 protected-mode environment.
+
+The architecture includes descriptors for:
+
+```text
+GDT
+├── Null Descriptor
+├── Kernel Code Segment
+├── Kernel Data Segment
+├── User Code Segment
+└── User Data Segment
+```
+
+---
+
+# IDT and Interrupts
+
+The Interrupt Descriptor Table provides the foundation for CPU exceptions and hardware interrupts.
+
+```text
+CPU
+ │
+ ├── Exception
+ │
+ └── Interrupt
+       ↓
+      IDT
+       ↓
+   ISR / Handler
+       ↓
+     Kernel
+```
+
+The design includes infrastructure for handling common CPU exceptions such as:
+
+* Divide Error
+* Debug
+* Breakpoint
+* Invalid Opcode
+* Double Fault
+* General Protection Fault
+* Page Fault
+
+---
+
+# PIC and Hardware IRQs
+
+AyushOS uses the traditional x86 Programmable Interrupt Controller infrastructure.
+
+```text
+Hardware Device
+      ↓
+    8259 PIC
+      ↓
+     IRQ
+      ↓
+  IDT Vector
+      ↓
+ IRQ Handler
+      ↓
+   Kernel
+```
+
+Initial hardware mapping includes:
+
+```text
+IRQ0 → Timer
+IRQ1 → Keyboard
+IRQ2 → Cascade
+```
+
+---
+
+# Timer
+
+The timer subsystem receives periodic interrupts from the PIT.
+
+```text
+PIT
+ ↓
+IRQ0
+ ↓
+Timer Handler
+ ↓
+Tick Counter
+ ↓
+Kernel Time
+```
+
+Timer infrastructure is important for future preemptive scheduling.
+
+---
+
+# Keyboard Driver
+
+AyushOS includes a PS/2 keyboard input path.
+
+```text
+PS/2 Keyboard
+      ↓
+     IRQ1
+      ↓
+Keyboard Handler
+      ↓
+Scancode Decoder
+      ↓
+Keyboard Buffer
+```
+
+The current architecture supports:
+
+* Keyboard interrupts
+* Scancode processing
+* Character input
+* Input buffering
+
+---
+
+# Process Management
+
+The kernel contains an early process-management subsystem.
+
+A process is represented using concepts such as:
+
+* PID
+* Process state
+* Process table
+* Kernel stack
+* CPU context
+* Runtime information
+
+Process states are designed around:
+
+```text
+NEW
+ ↓
+READY
+ ↓
+RUNNING
+ ├── BLOCKED
+ ├── SLEEPING
+ └── TERMINATED
+```
+
+The repository also contains an assembly-backed context-switching path. The next major step is turning this foundation into a complete preemptive scheduler.
+
+---
+
+# Architecture
+
+## Current Kernel Architecture
+
+```text
+                       ┌──────────────────┐
+                       │       GRUB       │
+                       │    Bootloader    │
+                       └────────┬─────────┘
+                                │
+                                ▼
+                       ┌──────────────────┐
+                       │   x86 Boot Code  │
+                       │      NASM        │
+                       └────────┬─────────┘
+                                │
+                                ▼
+                       ┌──────────────────┐
+                       │   Kernel Entry   │
+                       │   kernel_main()  │
+                       └────────┬─────────┘
+                                │
+              ┌─────────────────┼─────────────────┐
+              │                 │                 │
+              ▼                 ▼                 ▼
+          ┌────────┐        ┌────────┐        ┌────────┐
+          │  GDT   │        │  IDT   │        │  PIC   │
+          └────────┘        └────┬───┘        └────┬───┘
+                                  │                 │
+                                  └────────┬────────┘
                                            ▼
                                   ┌────────────────┐
                                   │ IRQ Subsystem  │
                                   └───────┬────────┘
                                           │
-                         ┌────────────────┼────────────────┐
-                         │                │                │
-                         ▼                ▼                ▼
-                    ┌─────────┐      ┌──────────┐    ┌──────────┐
-                    │  Timer  │      │ Keyboard │    │ Future   │
-                    │  IRQ0   │      │   IRQ1   │    │ Devices  │
-                    └────┬────┘      └─────┬────┘    └──────────┘
-                         │                 │
-                         └────────┬────────┘
-                                  ▼
-                         ┌────────────────────┐
-                         │ Process Management │
-                         │                    │
-                         │ PID                │
-                         │ Process State      │
-                         │ Kernel Stack       │
-                         │ CPU Context        │
-                         └─────────┬──────────┘
-                                   │
-                                   ▼
-                         ┌────────────────────┐
-                         │ Context Switching  │
-                         │       NASM         │
-                         └─────────┬──────────┘
-                                   │
-                    ┌──────────────┼──────────────┐
-                    ▼              ▼              ▼
-                ┌────────┐    ┌────────┐     ┌────────┐
-                │Process │    │Process │     │  Idle  │
-                │   A    │    │   B    │     │Process │
-                └────────┘    └────────┘     └────────┘
+                           ┌──────────────┼──────────────┐
+                           │              │              │
+                           ▼              ▼              ▼
+                       ┌────────┐    ┌──────────┐   ┌──────────┐
+                       │ Timer  │    │ Keyboard │   │ Future   │
+                       │ IRQ0   │    │   IRQ1   │   │ Devices  │
+                       └────┬───┘    └─────┬────┘   └──────────┘
+                            │               │
+                            └───────┬───────┘
+                                    ▼
+                           ┌────────────────────┐
+                           │ Process Management │
+                           │                    │
+                           │ PID                │
+                           │ Process State      │
+                           │ Kernel Stack       │
+                           │ CPU Context        │
+                           └─────────┬──────────┘
+                                     │
+                                     ▼
+                           ┌────────────────────┐
+                           │ Context Switching  │
+                           │       NASM         │
+                           └─────────┬──────────┘
+                                     │
+                        ┌────────────┼────────────┐
+                        ▼            ▼            ▼
+                    Process A    Process B      Idle
+```
+
+---
+
+# Long-Term Architecture
+
+The intended complete architecture is:
+
+```text
+                    USER APPLICATIONS
+                           │
+                           ▼
+                      USER SPACE
+                           │
+                           ▼
+                    SYSTEM CALL ABI
+                           │
+                           ▼
+┌────────────────────────────────────────────────────┐
+│                    KERNEL SPACE                    │
+│                                                    │
+│  Process Manager      Scheduler                   │
+│         │                 │                        │
+│         └────────┬────────┘                        │
+│                  ▼                                 │
+│            Memory Manager                          │
+│                  │                                 │
+│         ┌────────┴────────┐                        │
+│         ▼                 ▼                        │
+│   Virtual Memory      Kernel Heap                  │
+│                                                    │
+│  VFS → Filesystems → Storage                       │
+│                                                    │
+│  Network Stack → NIC Drivers                       │
+│                                                    │
+│  Security / Isolation / IPC                        │
+│                                                    │
+│  Hardware Drivers                                  │
+└───────────────────────┬────────────────────────────┘
+                        │
+                        ▼
+                  x86 HARDWARE
 ```
 
 ---
@@ -214,8 +482,10 @@ The current implementation contains the foundational x86 kernel infrastructure:
 | Build System        | GNU Make                   |
 | Emulator            | QEMU                       |
 | Debugger            | GDB                        |
-| Host OS             | Arch Linux                 |
+| Host Development OS | Arch Linux                 |
 | Version Control     | Git / GitHub               |
+
+The repository currently targets a 32-bit x86 environment and uses C, NASM, GRUB, GCC, GNU Make, QEMU and GDB as its primary development stack.
 
 ---
 
@@ -272,265 +542,57 @@ AyushOS/
 └── .gitignore
 ```
 
----
-
-# Development Roadmap
-
-AyushOS is organized into incremental development phases.
-
-```text
-Phase 0
-Development Environment
-       ↓
-Phase 1
-Boot + Kernel Entry
-       ↓
-Phase 2
-Terminal + Logging
-       ↓
-Phase 3
-GDT
-       ↓
-Phase 4
-IDT + Exceptions
-       ↓
-Phase 5
-PIC + IRQ
-       ↓
-Phase 6
-Timer + Keyboard
-       ↓
-Phase 7
-Physical Memory
-       ↓
-Phase 8
-Process Management
-       ↓
-Phase 9
-Preemptive Scheduler
-       ↓
-Phase 10
-User Mode + System Calls
-       ↓
-Phase 11+
-Virtual Memory / Filesystem / Networking / Security / SMP
-```
+This structure cleanly separates architecture-specific assembly, kernel subsystems, headers, drivers, libraries, and build/linker configuration.
 
 ---
 
-# Phase 0 — Development Environment
+# Development Phases
 
-## Objective
+## Phase 0 — Development Environment
 
-Create a reproducible low-level operating-system development environment.
-
-### Toolchain
-
-```text
-Arch Linux
-   │
-   ├── GCC
-   ├── NASM
-   ├── GNU Binutils
-   ├── GRUB
-   ├── Xorriso
-   ├── QEMU
-   ├── GDB
-   └── GNU Make
-```
-
-### Deliverables
-
-* Development environment
-* Repository initialization
-* Makefile
-* Cross-layer build pipeline
-* QEMU execution
-* GDB debugging
-
-### Architecture
-
-```text
-Developer
-    │
-    ▼
-Source Code
-    │
-    ▼
-Assembler / Compiler
-    │
-    ▼
-Linker
-    │
-    ▼
-Kernel Binary
-    │
-    ▼
-GRUB ISO
-    │
-    ▼
-QEMU
-```
+* GCC
+* NASM
+* GNU Binutils
+* GRUB
+* Xorriso
+* QEMU
+* GDB
+* GNU Make
 
 ---
 
-# Phase 1 — Bootloader and Kernel Entry
+## Phase 1 — Boot + Kernel Entry
 
-## Objective
-
-Boot the machine and transfer execution from GRUB to the AyushOS kernel.
-
-### Architecture
-
-```text
-BIOS / UEFI
-     ↓
-GRUB
-     ↓
-boot.asm
-     ↓
-Kernel Entry
-     ↓
-kernel_main()
-```
-
-### Components
-
-* GRUB configuration
-* Multiboot-compatible boot path
+* GRUB boot
 * Assembly bootstrap
-* Kernel entry point
+* Kernel entry
 * Linker script
-* Kernel binary
 * Bootable ISO
 
-### Success Criteria
-
-```text
-GRUB
-  ↓
-AyushOS
-  ↓
-Kernel executes successfully
-```
-
 ---
 
-# Phase 2 — Terminal and Kernel Logging
-
-## Objective
-
-Create a basic kernel output system.
-
-### Architecture
-
-```text
-Kernel
-   │
-   ▼
-kprintf()
-   │
-   ▼
-Terminal Driver
-   │
-   ▼
-VGA Text Buffer
-```
-
-### Features
+## Phase 2 — Terminal + Logging
 
 * VGA text mode
 * Character output
 * String output
 * Integer formatting
 * Kernel logging
-* Error messages
 * Debug messages
-
-### Example
-
-```text
-[ OK ] Terminal initialized
-[ OK ] GDT initialized
-[ OK ] IDT initialized
-[ OK ] PIC initialized
-[INFO] Kernel boot complete
-```
 
 ---
 
-# Phase 3 — Global Descriptor Table
-
-## Objective
-
-Establish x86 protected-mode segmentation.
-
-### Architecture
-
-```text
-CPU
- │
- ▼
-GDTR
- │
- ▼
-GDT
- ├── Null Descriptor
- ├── Kernel Code Segment
- ├── Kernel Data Segment
- ├── User Code Segment
- └── User Data Segment
-```
-
-### Deliverables
+## Phase 3 — GDT
 
 * GDT structure
 * Segment descriptors
-* GDT initialization
+* Kernel code/data segments
+* User code/data segment preparation
 * Assembly reload
-* Kernel code/data segmentation
 
 ---
 
-# Phase 4 — Interrupt Descriptor Table
-
-## Objective
-
-Create the CPU interrupt and exception infrastructure.
-
-### Architecture
-
-```text
-CPU
- │
- ├── Exception
- │
- └── Interrupt
-        │
-        ▼
-       IDT
-        │
-        ▼
-   ISR / Handler
-        │
-        ▼
-      Kernel
-```
-
-### Target Exceptions
-
-```text
-Divide Error
-Debug
-Breakpoint
-Invalid Opcode
-Double Fault
-General Protection Fault
-Page Fault
-...
-```
-
-### Deliverables
+## Phase 4 — IDT + Exceptions
 
 * IDT
 * ISR stubs
@@ -540,43 +602,7 @@ Page Fault
 
 ---
 
-# Phase 5 — PIC and Hardware IRQ
-
-## Objective
-
-Connect hardware devices to the kernel interrupt system.
-
-### Architecture
-
-```text
-Hardware Device
-      │
-      ▼
-   8259 PIC
-      │
-      ▼
-     IRQ
-      │
-      ▼
-  IDT Vector
-      │
-      ▼
- IRQ Handler
-      │
-      ▼
-    Kernel
-```
-
-### Initial IRQ Mapping
-
-```text
-IRQ0 → Timer
-IRQ1 → Keyboard
-IRQ2 → Cascade
-...
-```
-
-### Deliverables
+## Phase 5 — PIC + IRQ
 
 * PIC initialization
 * PIC remapping
@@ -586,146 +612,32 @@ IRQ2 → Cascade
 
 ---
 
-# Phase 6 — Timer and Keyboard
+## Phase 6 — Timer + Keyboard
 
-## Timer Architecture
-
-```text
-PIT
- │
- ▼
-IRQ0
- │
- ▼
-Timer Handler
- │
- ▼
-Tick Counter
- │
- ▼
-Kernel Time
-```
-
-## Keyboard Architecture
-
-```text
-PS/2 Keyboard
-      │
-      ▼
-     IRQ1
-      │
-      ▼
-Keyboard Handler
-      │
-      ▼
-Scancode Decoder
-      │
-      ▼
-Keyboard Buffer
-```
-
-### Deliverables
-
+* PIT timer
 * Timer ticks
-* Kernel time accounting
-* Keyboard interrupts
-* Scancode processing
+* Keyboard IRQ
+* Scancode decoding
 * Character input
 * Input buffer
 
 ---
 
-# Phase 7 — Physical Memory Manager
+## Phase 7 — Physical Memory
 
-## Objective
-
-Introduce explicit physical-memory management.
-
-### Architecture
-
-```text
-Physical Memory
-       │
-       ▼
-   Memory Map
-       │
-       ▼
-Frame Allocator
-       │
-       ├── Allocate
-       ├── Free
-       └── Track
-```
-
-### Initial Design
-
-```text
-Physical Memory
-       ↓
-Bitmap
-       ↓
-Frame Allocation
-```
-
-### Future Designs
-
-```text
-Bitmap
-  ↓
-Buddy Allocator
-  ↓
-Slab Allocator
-```
-
-### Deliverables
+Planned/under development:
 
 * Physical memory map
 * Frame allocator
-* Bitmap
-* `alloc_frame()`
-* `free_frame()`
+* Bitmap allocator
+* Frame allocation/freeing
 * Memory statistics
 
 ---
 
-# Phase 8 — Process Management
+## Phase 8 — Process Management
 
-## Objective
-
-Introduce a real kernel process abstraction.
-
-### Architecture
-
-```text
-                 Process Manager
-                       │
-          ┌────────────┼────────────┐
-          ▼            ▼            ▼
-         PID          PCB       Kernel Stack
-          │
-          ▼
-      CPU Context
-```
-
-### Process States
-
-```text
-NEW
- │
- ▼
-READY
- │
- ▼
-RUNNING
- │
- ├──────► BLOCKED
- │
- ├──────► SLEEPING
- │
- └──────► TERMINATED
-```
-
-### Components
+Under development:
 
 * PID allocation
 * Process table
@@ -734,109 +646,44 @@ RUNNING
 * Process termination
 * Kernel stacks
 * CPU context
-* Runtime accounting
-
-### Current Direction
-
-The kernel already contains process-management infrastructure and an assembly-backed context-switch path. The next objective is to turn that infrastructure into a fully preemptive scheduling subsystem.
+* Context switching
 
 ---
 
-# Phase 9 — Preemptive Scheduler
+## Phase 9 — Preemptive Scheduler
 
-## Objective
-
-Replace manual process switching with a real scheduler.
-
-### Target Architecture
+Target:
 
 ```text
-                 Timer IRQ
-                     │
-                     ▼
-              Scheduler Entry
-                     │
-                     ▼
-              Save CPU Context
-                     │
-                     ▼
-             Scheduler Algorithm
-                     │
-          ┌──────────┼──────────┐
-          ▼          ▼          ▼
-       Process A  Process B  Process C
-          │          │          │
-          └──────────┼──────────┘
-                     ▼
-               Next Process
-                     │
-                     ▼
-               Context Switch
-                     │
-                     ▼
-                  CPU Run
+Timer IRQ
+   ↓
+Scheduler
+   ↓
+Save Context
+   ↓
+Select Process
+   ↓
+Context Switch
+   ↓
+Run Process
 ```
 
-### First Scheduler
+Initial scheduler:
 
-Implement:
+**Round Robin**
 
-```text
-Round Robin
-```
+Future experiments:
 
-### Future Experiments
-
-```text
-Priority Scheduling
-Multilevel Feedback Queue
-Real-Time Scheduling
-Fair Scheduling
-```
-
-### Deliverables
-
-* Ready queue
-* Scheduler abstraction
-* Time slices
-* Timer-driven preemption
-* Context save/restore
-* Process selection
-* Scheduler statistics
-* Fairness measurements
+* Priority scheduling
+* Multilevel Feedback Queue
+* Real-time scheduling
+* Fair scheduling
 
 ---
 
-# Phase 10 — User Mode and System Calls
+## Phase 10 — User Mode + System Calls
 
-## Objective
-
-Separate user-space applications from kernel-space execution.
-
-### Architecture
-
-```text
-┌─────────────────────────────┐
-│          USER SPACE         │
-│                             │
-│  Shell / Applications       │
-└─────────────┬───────────────┘
-              │
-              │ System Call
-              ▼
-┌─────────────────────────────┐
-│       SYSTEM CALL ABI       │
-└─────────────┬───────────────┘
-              │
-              ▼
-┌─────────────────────────────┐
-│         KERNEL SPACE        │
-│                             │
-│ Process / Memory / Drivers  │
-└─────────────────────────────┘
-```
-
-### Initial System Calls
+Target system calls:
 
 ```text
 write()
@@ -847,7 +694,7 @@ sleep()
 getpid()
 ```
 
-### Deliverables
+Main objectives:
 
 * Ring 3 execution
 * User stack
@@ -855,32 +702,13 @@ getpid()
 * System-call entry
 * System-call dispatcher
 * Syscall table
-* User-process execution
+* User processes
 
 ---
 
 # Future Roadmap
 
-The project continues beyond Phase 10.
-
----
-
 ## Phase 11 — Virtual Memory
-
-```text
-Virtual Address
-      │
-      ▼
-Page Directory
-      │
-      ▼
-Page Table
-      │
-      ▼
-Physical Frame
-```
-
-Features:
 
 * Paging
 * Page directories
@@ -892,21 +720,17 @@ Features:
 
 ---
 
-# Phase 12 — Kernel Heap
+## Phase 12 — Kernel Heap
+
+Introduce dynamic kernel allocation:
 
 ```text
 kmalloc()
-    │
-    ▼
-Kernel Heap
-    │
-    ├── Allocate
-    ├── Free
-    ├── Reallocate
-    └── Statistics
+kfree()
+krealloc()
 ```
 
-Potential allocators:
+Possible allocator implementations:
 
 * First Fit
 * Best Fit
@@ -915,29 +739,25 @@ Potential allocators:
 
 ---
 
-# Phase 13 — Virtual File System
+## Phase 13 — Virtual File System
 
-### Architecture
+Create a generic filesystem abstraction:
 
 ```text
 Application
-     │
-     ▼
- System Call
-     │
-     ▼
-     VFS
-     │
+     ↓
+System Call
+     ↓
+    VFS
+     ↓
  ┌───┼──────────┐
  ▼   ▼          ▼
-FAT  EXT2      DevFS
+FAT EXT2      DevFS
 ```
-
-The VFS will provide a common interface between user applications and filesystem implementations.
 
 ---
 
-# Phase 14 — Filesystem
+## Phase 14 — Filesystem
 
 Initial target:
 
@@ -959,30 +779,25 @@ Custom AyushOS Filesystem
 
 ---
 
-# Phase 15 — Shell
+## Phase 15 — Shell
 
-### Architecture
+Target architecture:
 
 ```text
 Keyboard
-    │
-    ▼
+   ↓
 Input Buffer
-    │
-    ▼
+   ↓
 Command Parser
-    │
-    ▼
+   ↓
 Shell
-    │
-    ▼
+   ↓
 System Calls
-    │
-    ▼
+   ↓
 Kernel
 ```
 
-### Example Commands
+Example future commands:
 
 ```text
 AyushOS> help
@@ -996,71 +811,55 @@ AyushOS> uname
 
 ---
 
-# Phase 16 — ELF Loader
+## Phase 16 — ELF Loader
 
-## Objective
-
-Load real executable programs.
+Load actual executable programs:
 
 ```text
 ELF Binary
-    │
-    ▼
+    ↓
 ELF Parser
-    │
-    ▼
+    ↓
 Program Headers
-    │
-    ▼
+    ↓
 Virtual Memory
-    │
-    ▼
+    ↓
 User Process
-    │
-    ▼
+    ↓
 Ring 3
 ```
 
 ---
 
-# Phase 17 — Networking
+## Phase 17 — Networking
 
-## Architecture
+Potential stack:
 
 ```text
 Application
-     │
-     ▼
-Socket API
-     │
-     ▼
-TCP/IP Stack
-     │
-     ▼
-Ethernet
-     │
-     ▼
-NIC Driver
-     │
-     ▼
-QEMU Network
+     ↓
+ Socket API
+     ↓
+  TCP/IP
+     ↓
+ Ethernet
+     ↓
+ NIC Driver
+     ↓
+ QEMU Network
 ```
 
-Potential protocol stack:
+Potential protocols:
 
-```text
-ARP
-IPv4
-ICMP
-UDP
-TCP
-```
+* ARP
+* IPv4
+* ICMP
+* UDP
+* TCP
 
 ---
 
-# Phase 18 — Security Research
-
-AyushOS can become a controlled environment for experimenting with operating-system security.
+## Phase 18 — Security Research
 
 Potential research areas:
 
@@ -1078,27 +877,9 @@ Potential research areas:
 
 ---
 
-# Phase 19 — SMP and Multicore
+## Phase 19 — SMP / Multicore
 
-### Architecture
-
-```text
-                  CPU 0
-                    │
-              ┌─────▼─────┐
-              │ Scheduler │
-              └─────┬─────┘
-                    │
-        ┌───────────┼───────────┐
-        ▼           ▼           ▼
-      CPU 0       CPU 1       CPU 2
-        │           │           │
-        └───────────┼───────────┘
-                    ▼
-              Shared Memory
-```
-
-Potential work:
+Future work:
 
 * SMP boot
 * APIC
@@ -1110,11 +891,11 @@ Potential work:
 
 ---
 
-# Phase 20 — Operating-System Research Platform
+## Phase 20 — OS Research Platform
 
-The long-term objective is to turn AyushOS into a controlled environment for operating-system experimentation.
+The long-term objective is to use AyushOS as a controlled environment for experimenting with operating-system design.
 
-Potential research topics:
+Potential research areas include:
 
 ### Scheduler Research
 
@@ -1153,7 +934,7 @@ Measure:
 Allocation latency
 Fragmentation
 Memory utilization
-Free/allocated frame distribution
+Frame distribution
 ```
 
 ### Security Research
@@ -1170,148 +951,159 @@ Kernel hardening
 
 ---
 
-# Research Metrics
-
-AyushOS should eventually measure its own behavior instead of only demonstrating functionality.
-
-| Metric               | Purpose                     |
-| -------------------- | --------------------------- |
-| Context Switch Time  | Scheduler overhead          |
-| Interrupt Latency    | Hardware responsiveness     |
-| Scheduler Latency    | Process responsiveness      |
-| CPU Utilization      | Scheduler efficiency        |
-| Memory Fragmentation | Allocator quality           |
-| Allocation Latency   | Memory performance          |
-| Syscall Overhead     | User/kernel transition cost |
-| IPC Latency          | Process communication       |
-| Network Throughput   | Network performance         |
-
----
-
-# Build Environment
-
-AyushOS is primarily developed and tested on Linux.
-
-For Arch Linux:
-
-```bash
-sudo pacman -S base-devel gcc nasm binutils grub xorriso qemu-desktop gdb
-```
-
-Verify the tools:
-
-```bash
-gcc --version
-nasm --version
-ld --version
-grub-mkrescue --version
-qemu-system-i386 --version
-gdb --version
-make --version
-```
-
----
-
 # Building AyushOS
 
-Clone the repository:
+## Requirements
+
+A suitable development environment should provide:
+
+```text
+GCC
+NASM
+GNU Binutils
+GRUB
+Xorriso
+QEMU
+GDB
+GNU Make
+```
+
+The project is currently documented around an Arch Linux development environment.
+
+## Clone
 
 ```bash
 git clone https://github.com/AyushjhaDevops/AyushOS.git
 cd AyushOS
 ```
 
-Build:
+## Build
 
 ```bash
 make
 ```
 
-Build the ISO:
+The Makefile is responsible for compiling the kernel sources, assembling low-level x86 code, linking the kernel, and preparing the bootable image.
+
+---
+
+# Running in QEMU
+
+After building the project, boot the generated image using QEMU.
+
+Typical workflow:
 
 ```bash
-make iso
+make
 ```
 
-Run in QEMU:
+Then launch the generated kernel/ISO with your QEMU configuration.
+
+For example:
 
 ```bash
-make run
+qemu-system-i386 -cdrom build/ayushos.iso
 ```
 
-Clean build artifacts:
+> The exact output image path depends on the current Makefile configuration. Verify the generated artifact before running the command.
 
-```bash
-make clean
+---
+
+# Debugging with GDB
+
+AyushOS is designed to be debugged at the kernel level using QEMU and GDB.
+
+Typical workflow:
+
+```text
+AyushOS
+   ↓
+ QEMU
+   ↓
+ GDB
+   ├── Breakpoints
+   ├── Registers
+   ├── Stack
+   ├── Memory
+   └── Instruction Trace
 ```
 
-Debug:
+Useful debugging targets include:
 
-```bash
-make debug
-```
+* Kernel entry
+* GDT initialization
+* IDT initialization
+* Interrupt handlers
+* Timer IRQ
+* Keyboard IRQ
+* Process creation
+* Context switching
+* Scheduler
+* Page faults
+* System calls
+
+---
+
+# Kernel Subsystems
+
+The project is organized around the following major subsystem boundaries:
+
+| Subsystem        | Purpose                      |
+| ---------------- | ---------------------------- |
+| Boot             | Starts the kernel            |
+| GDT              | x86 segmentation             |
+| IDT              | Interrupt/exception dispatch |
+| PIC              | Hardware interrupt routing   |
+| IRQ              | Hardware interrupt handling  |
+| Timer            | Periodic kernel interrupts   |
+| Keyboard         | Hardware input               |
+| Terminal         | Kernel display               |
+| Logging          | Kernel diagnostics           |
+| Process Manager  | Process lifecycle            |
+| Context Switcher | CPU context switching        |
+| Memory Manager   | Physical memory management   |
+| Scheduler        | CPU time allocation          |
+| Syscall Layer    | User/kernel interface        |
+| VMM              | Virtual memory               |
+| Heap             | Dynamic kernel allocation    |
+| VFS              | Filesystem abstraction       |
+| Network Stack    | Network communication        |
+| Security         | Kernel isolation/hardening   |
+| SMP              | Multicore support            |
 
 ---
 
 # Development Workflow
 
+AyushOS follows a low-level iterative development cycle:
+
 ```text
 Create Feature
-      │
-      ▼
+      ↓
 Design Architecture
-      │
-      ▼
+      ↓
 Implement
-      │
-      ▼
+      ↓
 Compile
-      │
-      ▼
+      ↓
 Boot in QEMU
-      │
-      ▼
+      ↓
 Test
-      │
-      ▼
+      ↓
 Debug with GDB
-      │
-      ▼
+      ↓
 Benchmark
-      │
-      ▼
+      ↓
 Document
-      │
-      ▼
+      ↓
 Commit
-      │
-      ▼
+      ↓
 Push
 ```
 
 ---
 
-# Commit Convention
-
-Recommended commit format:
-
-```text
-feat: add physical frame allocator
-feat: implement round robin scheduler
-feat: add user mode transition
-fix: correct IRQ acknowledgement
-fix: repair process stack initialization
-refactor: separate scheduler from process manager
-test: add scheduler stress test
-docs: document memory architecture
-perf: reduce context switch overhead
-```
-
----
-
 # Testing Strategy
-
-AyushOS will use multiple levels of testing.
 
 ## Build Tests
 
@@ -1340,7 +1132,7 @@ Keyboard
 
 ## Kernel Tests
 
-Verify:
+Future validation should cover:
 
 ```text
 Process Creation
@@ -1353,7 +1145,7 @@ System Calls
 
 ## Stress Tests
 
-Future stress tests:
+Planned stress tests include:
 
 ```text
 100+ process creation
@@ -1366,91 +1158,29 @@ Syscall load
 
 ---
 
-# Debugging
+# Performance Metrics
 
-AyushOS is designed to be debugged with QEMU and GDB.
+The project is intended to evolve from a functional educational kernel into a measurable research platform.
 
-Typical debugging workflow:
+Potential metrics include:
 
-```text
-AyushOS
-   │
-   ▼
-QEMU
-   │
-   ▼
-GDB
-   │
-   ├── Breakpoints
-   ├── Registers
-   ├── Stack
-   ├── Memory
-   └── Instruction Trace
-```
-
-Useful debugging targets include:
-
-```text
-Kernel Entry
-Interrupt Handlers
-Timer IRQ
-Keyboard IRQ
-Process Creation
-Context Switch
-Scheduler
-Page Fault
-System Calls
-```
-
----
-
-# Project Status
-
-The project should be considered an **experimental development kernel**.
-
-| Phase | Component               | Status |
-| ----: | ----------------------- | ------ |
-|     0 | Development Environment | ✅      |
-|     1 | Boot + Kernel Entry     | ✅      |
-|     2 | Terminal + Logging      | ✅      |
-|     3 | GDT                     | ✅      |
-|     4 | IDT + Exceptions        | ✅      |
-|     5 | PIC + IRQ               | ✅      |
-|     6 | Timer + Keyboard        | ✅      |
-|     7 | Physical Memory         | 🔄     |
-|     8 | Process Management      | 🔄     |
-|     9 | Preemptive Scheduler    | 🔄     |
-|    10 | User Mode + Syscalls    | ⏳      |
-|    11 | Virtual Memory          | ⏳      |
-|    12 | Kernel Heap             | ⏳      |
-|    13 | VFS                     | ⏳      |
-|    14 | Filesystem              | ⏳      |
-|    15 | Shell                   | ⏳      |
-|    16 | ELF Loader              | ⏳      |
-|    17 | Networking              | ⏳      |
-|    18 | Security Research       | ⏳      |
-|    19 | SMP                     | ⏳      |
-|    20 | Research Platform       | ⏳      |
-
-> **Status is based on implementation maturity, not simply the existence of source files.**
+| Metric               | Purpose                     |
+| -------------------- | --------------------------- |
+| Context Switch Time  | Scheduler overhead          |
+| Interrupt Latency    | Hardware responsiveness     |
+| Scheduler Latency    | Process responsiveness      |
+| CPU Utilization      | Scheduler efficiency        |
+| Memory Fragmentation | Allocator quality           |
+| Allocation Latency   | Memory performance          |
+| Syscall Overhead     | User/kernel transition cost |
+| IPC Latency          | Process communication       |
+| Network Throughput   | Network performance         |
 
 ---
 
 # What Makes AyushOS Different?
 
-AyushOS is deliberately built from the lowest level upward.
-
-Instead of starting with:
-
-```text
-Application
-   ↓
-Framework
-   ↓
-Library
-```
-
-AyushOS starts with:
+AyushOS intentionally starts from the lowest level rather than beginning with an application framework.
 
 ```text
 CPU
@@ -1474,7 +1204,7 @@ System Calls
 Applications
 ```
 
-This makes the project useful for learning and experimenting with systems programming at the hardware/software boundary.
+The purpose is to understand the layers that normally remain hidden behind mature operating systems.
 
 ---
 
@@ -1505,231 +1235,181 @@ Working on AyushOS provides practical experience with:
 
 ---
 
-# Long-Term Architecture
+# Limitations
 
-The complete target architecture is:
+AyushOS is an **experimental educational kernel**, not a production operating system.
 
-```text
-                         USER APPLICATIONS
-                                │
-                                ▼
-                           USER SPACE
-                                │
-                                ▼
-                       SYSTEM CALL ABI
-                                │
-                                ▼
-┌──────────────────────────────────────────────────────┐
-│                     KERNEL SPACE                     │
-│                                                      │
-│  ┌────────────┐  ┌────────────┐  ┌──────────────┐  │
-│  │ Scheduler  │  │ Processes  │  │ System Calls │  │
-│  └────────────┘  └────────────┘  └──────────────┘  │
-│                                                      │
-│  ┌────────────┐  ┌────────────┐  ┌──────────────┐  │
-│  │ VM Manager │  │ Heap       │  │ VFS          │  │
-│  └────────────┘  └────────────┘  └──────────────┘  │
-│                                                      │
-│  ┌────────────────────────────────────────────────┐  │
-│  │                DEVICE DRIVERS                  │  │
-│  │ Timer │ Keyboard │ Disk │ Console │ Network    │  │
-│  └───────────────────────┬────────────────────────┘  │
-└──────────────────────────┼───────────────────────────┘
-                           │
-                           ▼
-                    x86 HARDWARE
-                           │
-             ┌─────────────┼─────────────┐
-             ▼             ▼             ▼
-            CPU          Memory        Devices
-```
+Current limitations include:
+
+* 32-bit x86 target
+* Limited hardware support
+* Early-stage process management
+* Incomplete scheduler
+* No complete user-space environment yet
+* Virtual memory still planned
+* Filesystem support still planned
+* Networking still planned
+* SMP/multicore support still planned
+* Limited automated testing infrastructure
+
+These limitations are intentional milestones in the project's development rather than claims of production readiness.
 
 ---
 
-# Research Direction
+# Project Philosophy
 
-The ultimate objective is not simply:
+> **Build from the hardware upward. Understand every layer. Measure what you build.**
 
-> "Make an OS that boots."
+AyushOS is not primarily about making another operating system.
 
-The objective is:
-
-> **Build a controlled operating-system environment where kernel designs can be implemented, measured, compared, and researched.**
-
-This opens the door to experiments in:
+It is about understanding:
 
 ```text
-Scheduling
-    ↓
-Memory Management
-    ↓
-Concurrency
-    ↓
-Security
-    ↓
-Filesystem Design
-    ↓
-Networking
-    ↓
-Multicore Systems
+What happens after the computer turns on?
+
+How does the CPU enter the kernel?
+
+How does the kernel handle interrupts?
+
+How does memory get allocated?
+
+How are processes created?
+
+How does the CPU switch between processes?
+
+How does user code communicate with the kernel?
+
+How does a filesystem reach a storage device?
+
+How does a network packet reach an application?
+
+How can all of these components be isolated and secured?
 ```
+
+The project attempts to answer these questions by implementing the underlying mechanisms directly.
 
 ---
 
-# Contribution Guidelines
+# Contributing
 
-Contributions are welcome once the core architecture becomes sufficiently stable.
-
-Potential contribution areas:
-
-* Device drivers
-* Kernel subsystems
-* Scheduler experiments
-* Memory allocators
-* Testing infrastructure
-* Documentation
-* Performance benchmarks
-* Security research
+Contributions, experiments, documentation improvements, bug fixes, and architectural discussions are welcome.
 
 Before contributing:
 
-1. Understand the relevant subsystem.
-2. Read its architecture documentation.
-3. Keep changes isolated.
-4. Add tests where practical.
-5. Document architectural changes.
-6. Use descriptive commit messages.
+1. Understand the affected subsystem.
+2. Document the intended design.
+3. Implement the smallest testable change.
+4. Build the kernel.
+5. Boot it in QEMU.
+6. Test the affected subsystem.
+7. Debug with GDB when necessary.
+8. Document important architectural decisions.
 
----
-
-# Project Limitations
-
-AyushOS is currently an experimental operating-system project.
-
-It should **not** be used as:
-
-* A production operating system
-* A secure daily-driver OS
-* A replacement for Linux/Windows
-* A system for storing sensitive information
-* A production networking platform
-
-The project prioritizes learning, experimentation, and research.
-
----
-
-# Roadmap Summary
+Suggested commit style:
 
 ```text
-                 AYUSHOS
-                    │
-                    ▼
-             ┌─────────────┐
-             │ Bootloader  │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │   Kernel    │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │ Interrupts  │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │  Drivers    │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │   Memory    │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │  Processes  │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │ Scheduler   │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │  User Mode  │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │ System Call │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │   Virtual   │
-             │   Memory    │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │ Filesystem  │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │ Networking  │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │  Security   │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │    SMP      │
-             └──────┬──────┘
-                    ▼
-             ┌─────────────┐
-             │  Research   │
-             │  Platform   │
-             └─────────────┘
+feat: add physical frame allocator
+feat: implement round robin scheduler
+feat: add user mode transition
+
+fix: correct IRQ acknowledgement
+fix: repair process stack initialization
+
+refactor: separate scheduler from process manager
+
+test: add scheduler stress test
+
+docs: document memory architecture
+
+perf: reduce context switch overhead
+```
+
+---
+
+# Project Direction
+
+The immediate development direction is:
+
+```text
+Physical Memory
+      ↓
+Process Management
+      ↓
+Preemptive Scheduler
+      ↓
+User Mode
+      ↓
+System Calls
+      ↓
+Virtual Memory
+      ↓
+Kernel Heap
+      ↓
+Filesystem
+      ↓
+Shell
+      ↓
+ELF Programs
+      ↓
+Networking
+      ↓
+Security
+      ↓
+SMP
+      ↓
+OS Research Platform
 ```
 
 ---
 
 # License
 
-Add an explicit open-source license before accepting external contributions.
-
-Recommended options include:
-
-```text
-MIT
-BSD-2-Clause
-BSD-3-Clause
-Apache-2.0
-GPL-2.0
-```
-
-Choose the license based on the project's intended distribution and contribution model.
+See the repository for the current license information.
 
 ---
 
 # Author
 
-## Ayush Kumar Jha
+**Ayush Jha**
 
-**Computer Science Engineering**
+GitHub:
 
-Interests:
+https://github.com/AyushjhaDevops
+
+Project:
+
+https://github.com/AyushjhaDevops/AyushOS
+
+---
+
+# Final Note
+
+AyushOS is a journey from:
 
 ```text
-Operating Systems
-Systems Programming
-Cybersecurity
-Artificial Intelligence
-DevOps
-Cloud Computing
+Bare Metal
+    ↓
+Boot
+    ↓
+Kernel
+    ↓
+Interrupts
+    ↓
+Hardware
+    ↓
+Memory
+    ↓
+Processes
+    ↓
+Scheduling
+    ↓
+User Space
+    ↓
+Applications
 ```
 
----
+The objective is not simply to produce a bootable kernel.
 
-# Project
+The objective is to understand **why an operating system works the way it does**.
 
-**AyushOS**
-
-> **From CPU instructions to operating-system research.**
-
----
+**Build it. Boot it. Break it. Debug it. Measure it. Understand it.**
