@@ -11,7 +11,8 @@
 
 static process_t process_table[PROCESS_MAX];
 
-static uint32_t current_pid = PROCESS_INVALID_PID;
+static uint32_t current_pid =
+    PROCESS_INVALID_PID;
 
 static uint32_t next_pid = 1;
 
@@ -19,7 +20,7 @@ static uint32_t active_processes = 0;
 
 
 /* ============================================================
- * Scheduler state
+ * Scheduler configuration
  * ============================================================ */
 
 #define DEFAULT_QUANTUM_TICKS 10
@@ -48,27 +49,55 @@ static uint32_t process_stack_top(
 
 
 /*
- * Create an initial interrupt frame.
+ * Calculate effective priority.
  *
- * irq_common expects the stack to look like:
+ * Aging only applies to READY processes.
  *
- * ESP -> DS
- *        EDI
- *        ESI
- *        EBP
- *        saved ESP
- *        EBX
- *        EDX
- *        ECX
- *        EAX
- *        INT_NO
- *        ERR_CODE
- *        EIP
- *        CS
- *        EFLAGS
+ * Example:
  *
- * The IRQ return path will therefore start the process
- * through IRETD.
+ * base priority = 2
+ * waiting       = 40
+ * aging         = 20
+ *
+ * effective = 2 + 40/20
+ *           = 4
+ */
+static uint32_t calculate_effective_priority(
+    process_t *process)
+{
+    if (process == 0)
+    {
+        return 0;
+    }
+
+    uint32_t effective =
+        process->priority;
+
+    if (
+        process->state ==
+        PROCESS_READY
+    )
+    {
+        effective +=
+            process->waiting_ticks /
+            PROCESS_AGING_INTERVAL;
+    }
+
+    if (
+        effective >
+        PROCESS_MAX_PRIORITY
+    )
+    {
+        effective =
+            PROCESS_MAX_PRIORITY;
+    }
+
+    return effective;
+}
+
+
+/*
+ * Prepare the initial interrupt-return frame.
  */
 static void process_initialize_stack(
     process_t *process)
@@ -83,9 +112,6 @@ static void process_initialize_stack(
     stack_top =
         process_stack_top(process);
 
-    /*
-     * Keep stack reasonably aligned.
-     */
     stack_top &= ~0x0FU;
 
 
@@ -93,7 +119,6 @@ static void process_initialize_stack(
      * EFLAGS
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0x202;
 
@@ -102,7 +127,6 @@ static void process_initialize_stack(
      * CS
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0x08;
 
@@ -111,29 +135,22 @@ static void process_initialize_stack(
      * EIP
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         (uint32_t)process_bootstrap;
 
 
     /*
-     * Error code
+     * Error code.
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0;
 
 
     /*
      * Interrupt number.
-     *
-     * The exact value is not important for IRETD,
-     * but keeping a valid-looking timer vector makes
-     * the frame easy to inspect in GDB.
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         32;
 
@@ -142,7 +159,6 @@ static void process_initialize_stack(
      * EAX
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0;
 
@@ -151,7 +167,6 @@ static void process_initialize_stack(
      * ECX
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0;
 
@@ -160,7 +175,6 @@ static void process_initialize_stack(
      * EDX
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0;
 
@@ -169,18 +183,16 @@ static void process_initialize_stack(
      * EBX
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0;
 
 
     /*
-     * Original ESP field from PUSHAD.
+     * Original ESP.
      *
      * POPAD ignores this value.
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0;
 
@@ -189,7 +201,6 @@ static void process_initialize_stack(
      * EBP
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0;
 
@@ -198,7 +209,6 @@ static void process_initialize_stack(
      * ESI
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0;
 
@@ -207,7 +217,6 @@ static void process_initialize_stack(
      * EDI
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0;
 
@@ -216,15 +225,10 @@ static void process_initialize_stack(
      * DS
      */
     stack_top -= 4;
-
     *(uint32_t *)stack_top =
         0x10;
 
 
-    /*
-     * This is the exact ESP value that irq_common
-     * expects when restoring the process.
-     */
     process->kernel_stack_pointer =
         stack_top;
 }
@@ -242,15 +246,21 @@ void process_bootstrap(void)
     if (process != 0)
     {
         kprintf(
-            "\n[PROCESS] Starting PID=%u (%s)\n",
+            "\n[PROCESS] Starting PID=%u (%s) "
+            "BASE=%u EFFECTIVE=%u\n",
             process->pid,
-            process->name
+            process->name,
+            process->priority,
+            process->effective_priority
         );
+
 
         /*
          * First-run response metric.
          */
-        if (process->first_run_tick == 0)
+        if (
+            process->first_run_tick == 0
+        )
         {
             process->first_run_tick =
                 timer_get_ticks();
@@ -260,16 +270,15 @@ void process_bootstrap(void)
                 process->creation_tick;
         }
 
-        /*
-         * Execute the actual process entry.
-         */
+
         if (process->entry != 0)
         {
             process->entry();
         }
 
+
         /*
-         * If the entry function ever returns,
+         * If process entry returns,
          * terminate the process.
          */
         process_terminate(
@@ -277,9 +286,9 @@ void process_bootstrap(void)
         );
     }
 
+
     /*
-     * A terminated process waits for the next
-     * scheduler interrupt to move elsewhere.
+     * Wait for the scheduler.
      */
     while (1)
     {
@@ -294,12 +303,18 @@ void process_bootstrap(void)
 
 void process_initialize(void)
 {
-    for (uint32_t i = 0; i < PROCESS_MAX; i++)
+    for (
+        uint32_t i = 0;
+        i < PROCESS_MAX;
+        i++
+    )
     {
         process_table[i].pid = 0;
+
         process_table[i].state =
             PROCESS_UNUSED;
     }
+
 
     current_pid =
         PROCESS_INVALID_PID;
@@ -315,13 +330,24 @@ void process_initialize(void)
     quantum_ticks =
         DEFAULT_QUANTUM_TICKS;
 
+
     klog_ok(
         "Process subsystem initialized"
     );
 
+
     kprintf(
-        "[SCHED] Round-robin quantum: %u ticks\n",
+        "[SCHED] Algorithm: Priority + Aging\n"
+    );
+
+    kprintf(
+        "[SCHED] Quantum: %u ticks\n",
         quantum_ticks
+    );
+
+    kprintf(
+        "[SCHED] Aging interval: %u ticks\n",
+        PROCESS_AGING_INTERVAL
     );
 }
 
@@ -340,17 +366,37 @@ uint32_t process_create(
         return PROCESS_INVALID_PID;
     }
 
-    uint32_t slot = PROCESS_MAX;
 
-    for (uint32_t i = 0; i < PROCESS_MAX; i++)
+    if (
+        priority >
+        PROCESS_MAX_PRIORITY
+    )
     {
-        if (process_table[i].state ==
-            PROCESS_UNUSED)
+        priority =
+            PROCESS_MAX_PRIORITY;
+    }
+
+
+    uint32_t slot =
+        PROCESS_MAX;
+
+
+    for (
+        uint32_t i = 0;
+        i < PROCESS_MAX;
+        i++
+    )
+    {
+        if (
+            process_table[i].state ==
+            PROCESS_UNUSED
+        )
         {
             slot = i;
             break;
         }
     }
+
 
     if (slot == PROCESS_MAX)
     {
@@ -360,6 +406,7 @@ uint32_t process_create(
 
         return PROCESS_INVALID_PID;
     }
+
 
     process_t *process =
         &process_table[slot];
@@ -374,14 +421,17 @@ uint32_t process_create(
         i++
     )
     {
-        ((uint8_t *)process)[i] = 0;
+        ((uint8_t *)process)[i] =
+            0;
     }
 
 
     /*
-     * Assign PID.
+     * PID.
      */
-    process->pid = next_pid++;
+    process->pid =
+        next_pid++;
+
 
     if (next_pid == 0)
     {
@@ -390,7 +440,7 @@ uint32_t process_create(
 
 
     /*
-     * Copy process name.
+     * Name.
      */
     uint32_t i = 0;
 
@@ -408,49 +458,45 @@ uint32_t process_create(
         }
     }
 
-    process->name[i] = '\0';
+    process->name[i] =
+        '\0';
 
 
     process->entry =
         entry;
 
+
     process->priority =
         priority;
+
+
+    process->effective_priority =
+        priority;
+
 
     process->state =
         PROCESS_READY;
 
+
     process->creation_tick =
         timer_get_ticks();
 
-    process->wakeup_tick =
-        0;
 
-    process->runtime_ticks =
-        0;
+    process->runtime_ticks = 0;
 
-    process->waiting_ticks =
-        0;
+    process->waiting_ticks = 0;
 
-    process->scheduling_count =
-        0;
+    process->scheduling_count = 0;
 
-    process->first_run_tick =
-        0;
+    process->first_run_tick = 0;
 
-    process->response_ticks =
-        0;
+    process->response_ticks = 0;
 
-    process->completion_tick =
-        0;
+    process->completion_tick = 0;
 
-    process->turnaround_ticks =
-        0;
+    process->turnaround_ticks = 0;
 
 
-    /*
-     * Prepare initial IRQ-resume stack.
-     */
     process_initialize_stack(
         process
     );
@@ -460,7 +506,9 @@ uint32_t process_create(
 
 
     kprintf(
-        "[PROCESS] Created PID=%u name=%s priority=%u\n",
+        "[PROCESS] Created PID=%u "
+        "name=%s "
+        "priority=%u\n",
         process->pid,
         process->name,
         process->priority
@@ -478,22 +526,33 @@ uint32_t process_create(
 process_t *process_get(
     uint32_t pid)
 {
-    if (pid == PROCESS_INVALID_PID)
+    if (
+        pid ==
+        PROCESS_INVALID_PID
+    )
     {
         return 0;
     }
 
-    for (uint32_t i = 0; i < PROCESS_MAX; i++)
+
+    for (
+        uint32_t i = 0;
+        i < PROCESS_MAX;
+        i++
+    )
     {
         if (
             process_table[i].state !=
             PROCESS_UNUSED &&
-            process_table[i].pid == pid
+            process_table[i].pid ==
+            pid
         )
         {
-            return &process_table[i];
+            return
+                &process_table[i];
         }
     }
+
 
     return 0;
 }
@@ -505,7 +564,9 @@ process_t *process_get(
 
 process_t *process_current(void)
 {
-    return process_get(current_pid);
+    return process_get(
+        current_pid
+    );
 }
 
 
@@ -516,7 +577,7 @@ uint32_t process_current_pid(void)
 
 
 /* ============================================================
- * State management
+ * State
  * ============================================================ */
 
 void process_set_state(
@@ -531,19 +592,27 @@ void process_set_state(
         return;
     }
 
+
     process->state =
         state;
 
-    if (state == PROCESS_RUNNING)
+
+    if (
+        state ==
+        PROCESS_RUNNING
+    )
     {
         current_pid =
             process->pid;
+
+        current_slice_ticks =
+            0;
     }
 }
 
 
 /* ============================================================
- * Process termination
+ * Termination
  * ============================================================ */
 
 void process_terminate(
@@ -556,6 +625,7 @@ void process_terminate(
     {
         return;
     }
+
 
     if (
         process->state ==
@@ -589,17 +659,6 @@ void process_terminate(
         "\n[PROCESS] PID=%u terminated\n",
         pid
     );
-
-    /*
-     * IMPORTANT:
-     *
-     * Do not clear current_pid if this is the
-     * currently executing process.
-     *
-     * The timer scheduler needs to see that the
-     * current process became TERMINATED and select
-     * another process.
-     */
 }
 
 
@@ -617,6 +676,7 @@ void process_tick(void)
         return;
     }
 
+
     if (
         current->state ==
         PROCESS_RUNNING
@@ -628,37 +688,32 @@ void process_tick(void)
 
 
 /* ============================================================
- * Scheduler helper
+ * Find next process
  * ============================================================ */
 
-static process_t *process_find_next_ready(void)
+/*
+ * Priority scheduling with aging.
+ *
+ * Selection rules:
+ *
+ * 1. Ignore UNUSED/BLOCKED/TERMINATED.
+ * 2. Calculate effective priority.
+ * 3. Select highest effective priority.
+ * 4. If tied, use round-robin order.
+ */
+static process_t *
+process_find_next_ready(void)
 {
-    if (current_pid == 0)
-    {
-        /*
-         * No current process.
-         */
-        for (uint32_t i = 0;
-             i < PROCESS_MAX;
-             i++)
-        {
-            if (
-                process_table[i].state ==
-                PROCESS_READY
-            )
-            {
-                return &process_table[i];
-            }
-        }
+    process_t *best = 0;
 
-        return 0;
-    }
+    uint32_t best_priority = 0;
 
 
     /*
-     * Find current slot.
+     * Find current PCB slot.
      */
     uint32_t current_slot = 0;
+
 
     for (
         uint32_t i = 0;
@@ -678,7 +733,10 @@ static process_t *process_find_next_ready(void)
 
 
     /*
-     * Round-robin search.
+     * Scan in circular order.
+     *
+     * This gives round-robin behavior when
+     * effective priorities are equal.
      */
     for (
         uint32_t offset = 1;
@@ -690,24 +748,50 @@ static process_t *process_find_next_ready(void)
             (current_slot + offset) %
             PROCESS_MAX;
 
+
+        process_t *candidate =
+            &process_table[index];
+
+
         if (
-            process_table[index].state ==
+            candidate->state !=
             PROCESS_READY
         )
         {
-            return &process_table[index];
+            continue;
+        }
+
+
+        candidate->effective_priority =
+            calculate_effective_priority(
+                candidate
+            );
+
+
+        if (
+            best == 0 ||
+            candidate->effective_priority >
+            best_priority
+        )
+        {
+            best = candidate;
+
+            best_priority =
+                candidate->effective_priority;
         }
     }
 
-    return 0;
+
+    return best;
 }
 
 
 /* ============================================================
- * Phase 11 scheduler
+ * Phase 12 scheduler
  * ============================================================ */
 
-irq_frame_t *process_schedule_tick(
+irq_frame_t *
+process_schedule_tick(
     irq_frame_t *frame)
 {
     if (frame == 0)
@@ -717,7 +801,7 @@ irq_frame_t *process_schedule_tick(
 
 
     /*
-     * Account for the current process.
+     * Account CPU runtime.
      */
     process_tick();
 
@@ -727,10 +811,7 @@ irq_frame_t *process_schedule_tick(
 
 
     /*
-     * Save the current interrupt frame.
-     *
-     * This is the complete CPU state needed to resume
-     * the current process later.
+     * Save current interrupt frame.
      */
     if (current != 0)
     {
@@ -740,7 +821,7 @@ irq_frame_t *process_schedule_tick(
 
 
     /*
-     * Account waiting time for READY processes.
+     * Increase waiting time.
      */
     for (
         uint32_t i = 0;
@@ -751,25 +832,31 @@ irq_frame_t *process_schedule_tick(
         process_t *process =
             &process_table[i];
 
+
         if (
             process->state ==
             PROCESS_READY
         )
         {
             process->waiting_ticks++;
+
+
+            /*
+             * Update effective priority.
+             */
+            process->effective_priority =
+                calculate_effective_priority(
+                    process
+                );
         }
     }
 
 
-    /*
-     * Increase current time slice.
-     */
     current_slice_ticks++;
 
 
     /*
-     * Do not switch until the quantum expires,
-     * unless the current process is no longer runnable.
+     * Current process still has CPU time.
      */
     if (
         current != 0 &&
@@ -784,14 +871,14 @@ irq_frame_t *process_schedule_tick(
 
 
     /*
-     * Find next READY process.
+     * Select next process.
      */
     process_t *next =
         process_find_next_ready();
 
 
     /*
-     * Nothing else is runnable.
+     * Nobody else is READY.
      */
     if (next == 0)
     {
@@ -802,12 +889,12 @@ irq_frame_t *process_schedule_tick(
 
 
     /*
-     * If the only runnable process is the current
-     * one, keep executing it.
+     * Same process.
      */
     if (
         current != 0 &&
-        next->pid == current->pid
+        next->pid ==
+        current->pid
     )
     {
         current_slice_ticks = 0;
@@ -817,8 +904,7 @@ irq_frame_t *process_schedule_tick(
 
 
     /*
-     * Current process becomes READY if it was still
-     * running.
+     * Current process becomes READY.
      */
     if (
         current != 0 &&
@@ -832,10 +918,11 @@ irq_frame_t *process_schedule_tick(
 
 
     /*
-     * Activate next process.
+     * Activate selected process.
      */
     next->state =
         PROCESS_RUNNING;
+
 
     current_pid =
         next->pid;
@@ -844,7 +931,9 @@ irq_frame_t *process_schedule_tick(
     /*
      * First-run response metric.
      */
-    if (next->first_run_tick == 0)
+    if (
+        next->first_run_tick == 0
+    )
     {
         next->first_run_tick =
             timer_get_ticks();
@@ -856,7 +945,16 @@ irq_frame_t *process_schedule_tick(
 
 
     /*
-     * Scheduler statistics.
+     * Reset aging after receiving CPU time.
+     */
+    next->waiting_ticks = 0;
+
+    next->effective_priority =
+        next->priority;
+
+
+    /*
+     * Scheduler metrics.
      */
     next->scheduling_count++;
 
@@ -866,41 +964,126 @@ irq_frame_t *process_schedule_tick(
 
 
     /*
-     * Debug message.
-     *
-     * Do not print on every timer tick.
-     * This only happens on an actual context switch.
+     * Debug information.
      */
     if (current != 0)
     {
         kprintf(
-            "\n[SCHED] PID %u -> PID %u\n",
+            "\n[SCHED] PID %u -> PID %u "
+            "BASE=%u EFFECTIVE=%u\n",
             current->pid,
-            next->pid
+            next->pid,
+            next->priority,
+            next->effective_priority
         );
     }
     else
     {
         kprintf(
-            "\n[SCHED] BOOT -> PID %u\n",
-            next->pid
+            "\n[SCHED] BOOT -> PID %u "
+            "BASE=%u EFFECTIVE=%u\n",
+            next->pid,
+            next->priority,
+            next->effective_priority
         );
     }
 
 
-    /*
-     * Return the new process's saved IRQ frame.
-     *
-     * irq_common.asm will load ESP with this value
-     * and restore the selected process.
-     */
-    return (irq_frame_t *)
+    return
+        (irq_frame_t *)
         next->kernel_stack_pointer;
 }
 
 
 /* ============================================================
- * Scheduler statistics
+ * Priority API
+ * ============================================================ */
+
+uint32_t process_get_effective_priority(
+    uint32_t pid)
+{
+    process_t *process =
+        process_get(pid);
+
+    if (process == 0)
+    {
+        return 0;
+    }
+
+
+    process->effective_priority =
+        calculate_effective_priority(
+            process
+        );
+
+
+    return
+        process->effective_priority;
+}
+
+
+void process_set_priority(
+    uint32_t pid,
+    uint32_t priority)
+{
+    process_t *process =
+        process_get(pid);
+
+    if (process == 0)
+    {
+        return;
+    }
+
+
+    if (
+        priority >
+        PROCESS_MAX_PRIORITY
+    )
+    {
+        priority =
+            PROCESS_MAX_PRIORITY;
+    }
+
+
+    process->priority =
+        priority;
+
+
+    process->effective_priority =
+        calculate_effective_priority(
+            process
+        );
+
+
+    kprintf(
+        "[SCHED] PID=%u priority=%u\n",
+        pid,
+        priority
+    );
+}
+
+
+void process_reset_aging(
+    uint32_t pid)
+{
+    process_t *process =
+        process_get(pid);
+
+    if (process == 0)
+    {
+        return;
+    }
+
+
+    process->waiting_ticks = 0;
+
+    process->effective_priority =
+        process->priority;
+}
+
+
+/* ============================================================
+ * Scheduler configuration
  * ============================================================ */
 
 uint32_t process_get_context_switches(void)
@@ -923,10 +1106,13 @@ void process_set_quantum_ticks(
         return;
     }
 
+
     quantum_ticks =
         quantum;
 
-    current_slice_ticks = 0;
+
+    current_slice_ticks =
+        0;
 }
 
 
@@ -941,10 +1127,11 @@ uint32_t process_count(void)
 
 
 /* ============================================================
- * Process table display
+ * State name
  * ============================================================ */
 
-static const char *process_state_name(
+static const char *
+process_state_name(
     process_state_t state)
 {
     switch (state)
@@ -970,14 +1157,20 @@ static const char *process_state_name(
 }
 
 
+/* ============================================================
+ * Process table
+ * ============================================================ */
+
 void process_list(void)
 {
     kprintf(
-        "\nPID   STATE       PRI   RUNTIME   WAIT   SCHED   NAME\n"
+        "\nPID   STATE       BASE  EFF   "
+        "RUNTIME   WAIT   SCHED   NAME\n"
     );
 
+
     kprintf(
-        "----------------------------------------------------------\n"
+        "------------------------------------------------------------\n"
     );
 
 
@@ -990,6 +1183,7 @@ void process_list(void)
         process_t *process =
             &process_table[i];
 
+
         if (
             process->state ==
             PROCESS_UNUSED
@@ -1000,12 +1194,14 @@ void process_list(void)
 
 
         kprintf(
-            "%u     %-10s  %u     %u        %u      %u      %s\n",
+            "%u     %-10s  %u     %u     "
+            "%u        %u      %u      %s\n",
             process->pid,
             process_state_name(
                 process->state
             ),
             process->priority,
+            process->effective_priority,
             process->runtime_ticks,
             process->waiting_ticks,
             process->scheduling_count,
@@ -1019,6 +1215,7 @@ void process_list(void)
         context_switches
     );
 
+
     kprintf(
         "Quantum: %u ticks\n",
         quantum_ticks
@@ -1027,19 +1224,11 @@ void process_list(void)
 
 
 /* ============================================================
- * Legacy Phase 10 compatibility
+ * Compatibility functions
  * ============================================================ */
 
-/*
- * Phase 11 no longer uses the old cooperative context_switch()
- * for timer-driven scheduling.
- *
- * Keep these functions only so existing code does not break.
- *
- * The scheduler should use process_schedule_tick().
- */
-
-void process_switch_to(uint32_t pid)
+void process_switch_to(
+    uint32_t pid)
 {
     process_t *target =
         process_get(pid);
@@ -1049,6 +1238,7 @@ void process_switch_to(uint32_t pid)
         return;
     }
 
+
     if (
         target->state !=
         PROCESS_READY
@@ -1057,8 +1247,10 @@ void process_switch_to(uint32_t pid)
         return;
     }
 
+
     process_t *current =
         process_current();
+
 
     if (current != 0)
     {
@@ -1072,17 +1264,22 @@ void process_switch_to(uint32_t pid)
         }
     }
 
+
     target->state =
         PROCESS_RUNNING;
+
 
     current_pid =
         target->pid;
 
+
     target->scheduling_count++;
 
-    context_switches++;
+    current_slice_ticks =
+        0;
 
-    current_slice_ticks = 0;
+
+    context_switches++;
 }
 
 

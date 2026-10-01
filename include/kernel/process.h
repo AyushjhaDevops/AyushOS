@@ -10,6 +10,20 @@
 
 #define PROCESS_INVALID_PID 0
 
+/*
+ * Priority range.
+ *
+ * Higher number = higher base priority.
+ */
+#define PROCESS_MIN_PRIORITY 0
+#define PROCESS_MAX_PRIORITY 10
+
+/*
+ * Every N waiting ticks, a READY process receives
+ * one additional effective-priority point.
+ */
+#define PROCESS_AGING_INTERVAL 20
+
 typedef enum
 {
     PROCESS_UNUSED = 0,
@@ -22,6 +36,10 @@ typedef enum
 
 typedef void (*process_entry_t)(void);
 
+
+/*
+ * Process Control Block.
+ */
 typedef struct
 {
     uint32_t pid;
@@ -32,44 +50,67 @@ typedef struct
 
     process_entry_t entry;
 
+
     /*
      * Dedicated kernel stack.
      */
     uint8_t kernel_stack[PROCESS_STACK_SIZE];
 
+
     /*
-     * Points to an irq_frame_t stored inside kernel_stack.
-     *
-     * When a process is preempted, this points to the exact
-     * interrupt frame needed to resume it.
+     * Pointer to the saved interrupt frame.
      */
     uint32_t kernel_stack_pointer;
 
-    /*
-     * Scheduler statistics.
-     */
-    uint32_t runtime_ticks;
-    uint32_t creation_tick;
-    uint32_t wakeup_tick;
 
+    /*
+     * Scheduling properties.
+     */
     uint32_t priority;
 
-    uint32_t scheduling_count;
+    uint32_t effective_priority;
+
+
+    /*
+     * Runtime statistics.
+     */
+    uint32_t runtime_ticks;
 
     uint32_t waiting_ticks;
 
+    uint32_t creation_tick;
+
+    uint32_t wakeup_tick;
+
+
+    /*
+     * Scheduling statistics.
+     */
+    uint32_t scheduling_count;
+
+
+    /*
+     * Response-time metrics.
+     */
     uint32_t first_run_tick;
+
     uint32_t response_ticks;
 
+
+    /*
+     * Completion metrics.
+     */
     uint32_t completion_tick;
+
     uint32_t turnaround_ticks;
 
 } process_t;
 
 
-/*
- * Process subsystem.
- */
+/* ============================================================
+ * Process subsystem
+ * ============================================================ */
+
 void process_initialize(void);
 
 uint32_t process_create(
@@ -98,9 +139,10 @@ uint32_t process_count(void);
 void process_list(void);
 
 
-/*
- * Phase 11 scheduler interface.
- */
+/* ============================================================
+ * Phase 11/12 scheduler
+ * ============================================================ */
+
 irq_frame_t *process_schedule_tick(
     irq_frame_t *frame
 );
@@ -114,11 +156,28 @@ void process_set_quantum_ticks(
 );
 
 
-/*
- * Kept for compatibility with Phase 10.
- *
- * Phase 11 uses interrupt-frame scheduling instead.
- */
+/* ============================================================
+ * Phase 12 priority API
+ * ============================================================ */
+
+uint32_t process_get_effective_priority(
+    uint32_t pid
+);
+
+void process_set_priority(
+    uint32_t pid,
+    uint32_t priority
+);
+
+void process_reset_aging(
+    uint32_t pid
+);
+
+
+/* ============================================================
+ * Compatibility
+ * ============================================================ */
+
 void process_switch_to(uint32_t pid);
 
 void process_switch_next(void);

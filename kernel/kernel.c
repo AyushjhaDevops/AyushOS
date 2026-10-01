@@ -12,10 +12,10 @@
 
 
 /* ============================================================
- * Test Process A
+ * Low priority process
  * ============================================================ */
 
-static void test_process_a(void)
+static void test_process_low(void)
 {
     uint32_t counter = 0;
 
@@ -23,17 +23,12 @@ static void test_process_a(void)
     {
         counter++;
 
-        /*
-         * Print occasionally so the terminal does not
-         * get flooded.
-         */
         if (
-            (counter % 1000000U) ==
-            0
+            (counter % 1000000U) == 0
         )
         {
             kprintf(
-                "\n[PROC-A] PID=%u counter=%u\n",
+                "\n[LOW] PID=%u counter=%u\n",
                 process_current_pid(),
                 counter
             );
@@ -43,10 +38,10 @@ static void test_process_a(void)
 
 
 /* ============================================================
- * Test Process B
+ * Medium priority process
  * ============================================================ */
 
-static void test_process_b(void)
+static void test_process_medium(void)
 {
     uint32_t counter = 0;
 
@@ -55,12 +50,11 @@ static void test_process_b(void)
         counter++;
 
         if (
-            (counter % 1000000U) ==
-            0
+            (counter % 1000000U) == 0
         )
         {
             kprintf(
-                "\n[PROC-B] PID=%u counter=%u\n",
+                "\n[MEDIUM] PID=%u counter=%u\n",
                 process_current_pid(),
                 counter
             );
@@ -70,7 +64,33 @@ static void test_process_b(void)
 
 
 /* ============================================================
- * Idle / boot context
+ * High priority process
+ * ============================================================ */
+
+static void test_process_high(void)
+{
+    uint32_t counter = 0;
+
+    while (1)
+    {
+        counter++;
+
+        if (
+            (counter % 1000000U) == 0
+        )
+        {
+            kprintf(
+                "\n[HIGH] PID=%u counter=%u\n",
+                process_current_pid(),
+                counter
+            );
+        }
+    }
+}
+
+
+/* ============================================================
+ * Idle process
  * ============================================================ */
 
 static void idle_process(void)
@@ -90,17 +110,18 @@ void kernel_main(void)
 {
     terminal_initialize();
 
+
     kprintf(
         "\n"
         "========================================\n"
-        "        AyushOS - Phase 11\n"
-        "  Preemptive Round-Robin Scheduler\n"
+        "        AyushOS - Phase 12\n"
+        " Priority Scheduling + Aging\n"
         "========================================\n\n"
     );
 
 
     /*
-     * CPU descriptor tables.
+     * CPU structures.
      */
     gdt_initialize();
 
@@ -127,7 +148,7 @@ void kernel_main(void)
 
 
     /*
-     * IRQ subsystem.
+     * IRQ.
      */
     irq_initialize();
 
@@ -139,19 +160,15 @@ void kernel_main(void)
 
 
     /*
-     * Process subsystem MUST be initialized before
-     * timer scheduling starts.
+     * Process subsystem.
      */
     process_initialize();
 
 
     /*
-     * Create boot/idle context.
+     * PID 1:
      *
-     * PID 1 represents the kernel_main execution context.
-     *
-     * Its actual entry function is not used for the initial
-     * execution because kernel_main is already running.
+     * Kernel/idle context.
      */
     uint32_t idle_pid =
         process_create(
@@ -161,11 +178,6 @@ void kernel_main(void)
         );
 
 
-    /*
-     * The kernel itself is currently executing.
-     *
-     * Treat it as PID 1.
-     */
     process_set_state(
         idle_pid,
         PROCESS_RUNNING
@@ -173,75 +185,109 @@ void kernel_main(void)
 
 
     /*
-     * Test processes.
+     * PID 2:
+     *
+     * Lowest priority worker.
      */
-    uint32_t test_a_pid =
+    uint32_t low_pid =
         process_create(
-            "test-A",
-            test_process_a,
+            "low",
+            test_process_low,
             1
         );
 
 
-    uint32_t test_b_pid =
+    /*
+     * PID 3:
+     *
+     * Medium priority worker.
+     */
+    uint32_t medium_pid =
         process_create(
-            "test-B",
-            test_process_b,
-            1
+            "medium",
+            test_process_medium,
+            5
+        );
+
+
+    /*
+     * PID 4:
+     *
+     * Highest priority worker.
+     */
+    uint32_t high_pid =
+        process_create(
+            "high",
+            test_process_high,
+            8
         );
 
 
     kprintf(
-        "\n[BOOT] Created processes:\n"
+        "\n[BOOT] Process configuration:\n"
     );
 
+
     kprintf(
-        "       PID=%u idle\n",
+        "       PID=%u idle     priority=0\n",
         idle_pid
     );
 
-    kprintf(
-        "       PID=%u test-A\n",
-        test_a_pid
-    );
 
     kprintf(
-        "       PID=%u test-B\n",
-        test_b_pid
+        "       PID=%u low      priority=1\n",
+        low_pid
+    );
+
+
+    kprintf(
+        "       PID=%u medium   priority=5\n",
+        medium_pid
+    );
+
+
+    kprintf(
+        "       PID=%u high     priority=8\n",
+        high_pid
     );
 
 
     /*
-     * Display initial process table.
+     * Initial table.
      */
     process_list();
 
 
     /*
-     * PIT timer.
-     *
-     * This registers IRQ0 and enables timer interrupts.
+     * Start PIT.
      */
     timer_initialize();
 
 
     kprintf(
-        "\n[SCHED] Preemptive scheduling enabled\n"
+        "\n[SCHED] Priority scheduling enabled\n"
     );
 
+
     kprintf(
-        "[SCHED] Time quantum = %u ticks\n",
+        "[SCHED] Aging enabled\n"
+    );
+
+
+    kprintf(
+        "[SCHED] Aging interval = %u ticks\n",
+        PROCESS_AGING_INTERVAL
+    );
+
+
+    kprintf(
+        "[SCHED] Quantum = %u ticks\n",
         process_get_quantum_ticks()
-    );
-
-    kprintf(
-        "[SCHED] Timer = %u Hz\n",
-        100U
     );
 
 
     /*
-     * Enable CPU interrupts.
+     * Enable hardware interrupts.
      */
     __asm__ volatile ("sti");
 
@@ -250,22 +296,17 @@ void kernel_main(void)
         "\n[BOOT] Interrupts enabled\n"
     );
 
+
     kprintf(
-        "[BOOT] Scheduler is now running...\n\n"
+        "[BOOT] Phase 12 scheduler running...\n\n"
     );
 
 
     /*
-     * Kernel main becomes the idle/boot context.
-     *
-     * Timer IRQs will save this execution context into PID 1
-     * and switch to PID 2 / PID 3.
+     * Kernel/idle context.
      */
     while (1)
     {
-        /*
-         * Sleep until the next interrupt.
-         */
         __asm__ volatile ("hlt");
     }
 }
